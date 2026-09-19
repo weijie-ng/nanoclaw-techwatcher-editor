@@ -27,11 +27,12 @@
  */
 import fs from 'fs';
 
-import type Database from 'better-sqlite3';
+import Database from 'better-sqlite3';
 
 import { getDeliveryAdapter } from '../../delivery.js';
 import { log } from '../../log.js';
-import { heartbeatPath, openOutboundDb } from '../../session-manager.js';
+import { outboundDbPath } from '../../mailbox/sqlite/paths.js';
+import { heartbeatPath } from '../../session-manager.js';
 
 /**
  * Don't post at all until the turn has been running this long. Most
@@ -143,7 +144,12 @@ const EMPTY_STATE: ProgressState = { thinkingLine: null, recentTools: [], toolIn
 function readProgressState(agentGroupId: string, sessionId: string): ProgressState {
   let db: Database.Database;
   try {
-    db = openOutboundDb(agentGroupId, sessionId);
+    // Read-only, open-close per tick (the container is the sole writer of
+    // outbound.db). mmap disabled so a host read always sees the container's
+    // latest write across the mount rather than an early mmap snapshot.
+    db = new Database(outboundDbPath(agentGroupId, sessionId), { readonly: true });
+    db.pragma('busy_timeout = 5000');
+    db.pragma('mmap_size = 0');
     // eslint-disable-next-line no-catch-all/no-catch-all -- no session DB yet is the normal pre-spawn state, not an error to surface
   } catch {
     return EMPTY_STATE; // outbound.db doesn't exist yet (container still spawning)

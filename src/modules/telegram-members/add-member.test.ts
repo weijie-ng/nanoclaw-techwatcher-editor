@@ -26,11 +26,11 @@ import { handleAddMember, parseMentions, agentGroupsWiredToChat } from './add-me
 
 const now = '2026-08-24T00:00:00.000Z';
 
-function agentGroup(id: string) {
-  createAgentGroup({ id, name: id, folder: id, agent_provider: 'claude', created_at: now });
+async function agentGroup(id: string) {
+  await createAgentGroup({ id, name: id, folder: id, agent_provider: 'claude', created_at: now });
 }
-function messagingGroup(id: string, platformId: string) {
-  createMessagingGroup({
+async function messagingGroup(id: string, platformId: string) {
+  await createMessagingGroup({
     id,
     channel_type: 'telegram',
     platform_id: platformId,
@@ -41,18 +41,24 @@ function messagingGroup(id: string, platformId: string) {
     created_at: now,
   });
 }
-function wire(mgId: string, agId: string) {
-  getDb()
-    .prepare(
-      'INSERT INTO messaging_group_agents (id, messaging_group_id, agent_group_id, created_at) VALUES (?, ?, ?, ?)',
-    )
-    .run(`${mgId}-${agId}`, mgId, agId, now);
+async function wire(mgId: string, agId: string) {
+  await getDb().run(
+    'INSERT INTO messaging_group_agents (id, messaging_group_id, agent_group_id, created_at) VALUES (?, ?, ?, ?)',
+    `${mgId}-${agId}`,
+    mgId,
+    agId,
+    now,
+  );
 }
-function owner(userId: string) {
-  getDb()
-    .prepare('INSERT INTO users (id, kind, display_name, created_at) VALUES (?,?,?,?)')
-    .run(userId, 'telegram', 'O', now);
-  grantRole({ user_id: userId, role: 'owner', agent_group_id: null, granted_by: null, granted_at: now });
+async function owner(userId: string) {
+  await getDb().run(
+    'INSERT INTO users (id, kind, display_name, created_at) VALUES (?,?,?,?)',
+    userId,
+    'telegram',
+    'O',
+    now,
+  );
+  await grantRole({ user_id: userId, role: 'owner', agent_group_id: null, granted_by: null, granted_at: now });
 }
 
 function event(text: string, senderId: string, opts: { platformId?: string; isGroup?: boolean } = {}): InboundEvent {
@@ -73,12 +79,14 @@ function event(text: string, senderId: string, opts: { platformId?: string; isGr
 
 const lastReply = () => deliverMock.mock.calls.at(-1)?.[2].content.text as string;
 
-beforeEach(() => {
-  runMigrations(initTestDb());
+beforeEach(async () => {
+  await runMigrations(await initTestDb());
   deliverMock.mockClear();
   vi.mocked(resolveTelegramUsers).mockReset();
 });
-afterEach(() => closeDb());
+afterEach(async () => {
+  await closeDb();
+});
 
 describe('parseMentions', () => {
   it('splits on comma, space, newline, and concatenation; dedupes', () => {
@@ -111,24 +119,24 @@ describe('handleAddMember — scope', () => {
 
 describe('scenario 1 — non-admin caller fails', () => {
   it('denies a non-owner/non-admin and writes nothing', async () => {
-    agentGroup('ag1');
-    messagingGroup('mg', 'telegram:-100123');
-    wire('mg', 'ag1');
+    await agentGroup('ag1');
+    await messagingGroup('mg', 'telegram:-100123');
+    await wire('mg', 'ag1');
     // caller "2" has no role
     const consumed = await handleAddMember(event('/add-member @alice', '2'));
     expect(consumed).toBe(true);
     expect(lastReply()).toMatch(/permission denied/i);
     expect(resolveTelegramUsers).not.toHaveBeenCalled();
-    expect(getMembers('ag1')).toHaveLength(0);
+    expect(await getMembers('ag1')).toHaveLength(0);
   });
 });
 
 describe('scenario 2 — target not in the group is skipped', () => {
   it('adds the in-group user and skips the absent one', async () => {
-    agentGroup('ag1');
-    messagingGroup('mg', 'telegram:-100123');
-    wire('mg', 'ag1');
-    owner('telegram:1');
+    await agentGroup('ag1');
+    await messagingGroup('mg', 'telegram:-100123');
+    await wire('mg', 'ag1');
+    await owner('telegram:1');
     vi.mocked(resolveTelegramUsers).mockResolvedValue([
       { username: 'alice', userId: 'telegram:1001', inGroup: true, error: null },
       { username: 'carol', userId: 'telegram:1003', inGroup: false, error: null },
@@ -136,25 +144,25 @@ describe('scenario 2 — target not in the group is skipped', () => {
 
     await handleAddMember(event('/add-member @alice @carol', '1'));
 
-    expect(getMembers('ag1').map((m) => m.user_id)).toEqual(['telegram:1001']);
+    expect((await getMembers('ag1')).map((m) => m.user_id)).toEqual(['telegram:1001']);
     expect(lastReply()).toMatch(/@carol \(not in this group\)/);
   });
 });
 
 describe('scenarios 3 & 4 — owner adds to ALL agents wired to the chat', () => {
   it('grants each resolved member membership of every wired agent, incl. forum topics', async () => {
-    agentGroup('ag1');
-    agentGroup('ag2');
-    agentGroup('ag3');
-    messagingGroup('mg_main', 'telegram:-100123'); // General / chat-level
-    messagingGroup('mg_topic', 'telegram:-100123:99'); // a forum topic
-    wire('mg_main', 'ag1');
-    wire('mg_main', 'ag2');
-    wire('mg_topic', 'ag3');
-    owner('telegram:1');
+    await agentGroup('ag1');
+    await agentGroup('ag2');
+    await agentGroup('ag3');
+    await messagingGroup('mg_main', 'telegram:-100123'); // General / chat-level
+    await messagingGroup('mg_topic', 'telegram:-100123:99'); // a forum topic
+    await wire('mg_main', 'ag1');
+    await wire('mg_main', 'ag2');
+    await wire('mg_topic', 'ag3');
+    await owner('telegram:1');
 
     // enumeration covers chat-level + topic agent groups
-    expect(agentGroupsWiredToChat('-100123').sort()).toEqual(['ag1', 'ag2', 'ag3']);
+    expect((await agentGroupsWiredToChat('-100123')).sort()).toEqual(['ag1', 'ag2', 'ag3']);
 
     vi.mocked(resolveTelegramUsers).mockResolvedValue([
       { username: 'alice', userId: 'telegram:1001', inGroup: true, error: null },
@@ -164,11 +172,7 @@ describe('scenarios 3 & 4 — owner adds to ALL agents wired to the chat', () =>
     await handleAddMember(event('/add-member @alice,@bob', '1'));
 
     for (const ag of ['ag1', 'ag2', 'ag3']) {
-      expect(
-        getMembers(ag)
-          .map((m) => m.user_id)
-          .sort(),
-      ).toEqual(['telegram:1001', 'telegram:1002']);
+      expect((await getMembers(ag)).map((m) => m.user_id).sort()).toEqual(['telegram:1001', 'telegram:1002']);
     }
     expect(lastReply()).toMatch(/Added @alice, @bob as members\..*all 3 agents in this group/);
   });
@@ -176,10 +180,10 @@ describe('scenarios 3 & 4 — owner adds to ALL agents wired to the chat', () =>
   it('recognises the command when the message is prefixed with a bot mention', async () => {
     // Mention-engaged groups deliver "@TheBot /add-member @alice"; the command
     // is not at the start and the bot handle must not be a target.
-    agentGroup('ag1');
-    messagingGroup('mg', 'telegram:-100123');
-    wire('mg', 'ag1');
-    owner('telegram:1');
+    await agentGroup('ag1');
+    await messagingGroup('mg', 'telegram:-100123');
+    await wire('mg', 'ag1');
+    await owner('telegram:1');
     vi.mocked(resolveTelegramUsers).mockResolvedValue([
       { username: 'alice', userId: 'telegram:1001', inGroup: true, error: null },
     ]);
@@ -188,14 +192,14 @@ describe('scenarios 3 & 4 — owner adds to ALL agents wired to the chat', () =>
 
     expect(consumed).toBe(true);
     expect(vi.mocked(resolveTelegramUsers).mock.calls[0][1]).toEqual(['alice']);
-    expect(getMembers('ag1').map((m) => m.user_id)).toEqual(['telegram:1001']);
+    expect((await getMembers('ag1')).map((m) => m.user_id)).toEqual(['telegram:1001']);
   });
 
   it('does not treat the /add-member@BotName command suffix as a target', async () => {
-    agentGroup('ag1');
-    messagingGroup('mg', 'telegram:-100123');
-    wire('mg', 'ag1');
-    owner('telegram:1');
+    await agentGroup('ag1');
+    await messagingGroup('mg', 'telegram:-100123');
+    await wire('mg', 'ag1');
+    await owner('telegram:1');
     vi.mocked(resolveTelegramUsers).mockResolvedValue([
       { username: 'alice', userId: 'telegram:1001', inGroup: true, error: null },
     ]);
@@ -203,14 +207,14 @@ describe('scenarios 3 & 4 — owner adds to ALL agents wired to the chat', () =>
     await handleAddMember(event('/add-member@MyGroupBot @alice', '1'));
 
     expect(vi.mocked(resolveTelegramUsers).mock.calls[0][1]).toEqual(['alice']);
-    expect(getMembers('ag1').map((m) => m.user_id)).toEqual(['telegram:1001']);
+    expect((await getMembers('ag1')).map((m) => m.user_id)).toEqual(['telegram:1001']);
   });
 
   it('accepts the plural /add-members spelling', async () => {
-    agentGroup('ag1');
-    messagingGroup('mg', 'telegram:-100123');
-    wire('mg', 'ag1');
-    owner('telegram:1');
+    await agentGroup('ag1');
+    await messagingGroup('mg', 'telegram:-100123');
+    await wire('mg', 'ag1');
+    await owner('telegram:1');
     vi.mocked(resolveTelegramUsers).mockResolvedValue([
       { username: 'alice', userId: 'telegram:1001', inGroup: true, error: null },
     ]);
@@ -219,34 +223,34 @@ describe('scenarios 3 & 4 — owner adds to ALL agents wired to the chat', () =>
 
     expect(consumed).toBe(true);
     expect(vi.mocked(resolveTelegramUsers).mock.calls[0][1]).toEqual(['alice']);
-    expect(getMembers('ag1').map((m) => m.user_id)).toEqual(['telegram:1001']);
+    expect((await getMembers('ag1')).map((m) => m.user_id)).toEqual(['telegram:1001']);
   });
 
   it('a lone mention works too (scenario 4)', async () => {
-    agentGroup('ag1');
-    messagingGroup('mg', 'telegram:-100123');
-    wire('mg', 'ag1');
-    owner('telegram:1');
+    await agentGroup('ag1');
+    await messagingGroup('mg', 'telegram:-100123');
+    await wire('mg', 'ag1');
+    await owner('telegram:1');
     vi.mocked(resolveTelegramUsers).mockResolvedValue([
       { username: 'alice', userId: 'telegram:1001', inGroup: true, error: null },
     ]);
 
     await handleAddMember(event('/add-member @alice', '1'));
-    expect(getMembers('ag1').map((m) => m.user_id)).toEqual(['telegram:1001']);
+    expect((await getMembers('ag1')).map((m) => m.user_id)).toEqual(['telegram:1001']);
   });
 });
 
 describe('resolver not configured', () => {
   it('tells the admin instead of crashing', async () => {
-    agentGroup('ag1');
-    messagingGroup('mg', 'telegram:-100123');
-    wire('mg', 'ag1');
-    owner('telegram:1');
+    await agentGroup('ag1');
+    await messagingGroup('mg', 'telegram:-100123');
+    await wire('mg', 'ag1');
+    await owner('telegram:1');
     vi.mocked(resolveTelegramUsers).mockRejectedValue(new UserbotNotConfigured('session missing'));
 
     await handleAddMember(event('/add-member @alice', '1'));
     expect(lastReply()).toMatch(/Cannot resolve usernames: session missing/);
-    expect(getMembers('ag1')).toHaveLength(0);
+    expect(await getMembers('ag1')).toHaveLength(0);
   });
 });
 

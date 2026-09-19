@@ -1,7 +1,7 @@
 import { getAgentMailbox } from '../mailbox/index.js';
 
-export function setContainerToolInFlight(tool: string, declaredTimeoutMs: number | null): void {
-  getAgentMailbox().operations.setContainerToolInFlight(tool, declaredTimeoutMs);
+export function setContainerToolInFlight(tool: string, declaredTimeoutMs: number | null, label?: string): void {
+  getAgentMailbox().operations.setContainerToolInFlight(tool, declaredTimeoutMs, label);
 }
 
 export function clearContainerToolInFlight(): void {

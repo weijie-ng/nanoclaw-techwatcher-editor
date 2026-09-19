@@ -220,7 +220,7 @@ const PARENT_WIRING: MessagingGroupAgent = {
 async function runSpawn(content: Record<string, unknown>): Promise<void> {
   const wrapped = getDeliveryAction('spawn_topic_agent');
   expect(wrapped).toBeDefined();
-  await wrapped!(content, SESSION, undefined as never);
+  await wrapped!(content, SESSION);
 }
 
 /** An approval row the host still considers pending — a live grant. */
@@ -297,9 +297,9 @@ describe('spawn_topic_agent — guard-based authorization (wrapped delivery acti
     expect(mockCreateThread).not.toHaveBeenCalled();
   });
 
-  it('non-agent actor is denied outright', () => {
+  it('non-agent actor is denied outright', async () => {
     for (const actor of [{ kind: 'human' as const, userId: 'telegram:1' }, { kind: 'host' as const }]) {
-      expect(guard(topicsSpawn, { actor, payload: { name: 'Trip planning' } }).effect).toBe('deny');
+      expect((await guard(topicsSpawn, { actor, payload: { name: 'Trip planning' } })).effect).toBe('deny');
     }
   });
 
@@ -324,11 +324,10 @@ describe('spawn_topic_agent — channel capability', () => {
   });
 
   it('a session with no messaging group is refused', async () => {
-    await getDeliveryAction('spawn_topic_agent')!(
-      { name: 'Trip planning' },
-      { ...SESSION, messaging_group_id: null } as Session,
-      undefined as never,
-    );
+    await getDeliveryAction('spawn_topic_agent')!({ name: 'Trip planning' }, {
+      ...SESSION,
+      messaging_group_id: null,
+    } as Session);
 
     expect(mockCreateThread).not.toHaveBeenCalled();
     expect(mockCreateAgentGroup).not.toHaveBeenCalled();
@@ -340,11 +339,10 @@ describe('spawn_topic_agent — channel capability', () => {
     const topicMg: MessagingGroup = { ...PARENT_MG, id: 'mg-topic', platform_id: 'telegram:-1001:7' };
     state.messagingGroups = [PARENT_MG, topicMg];
 
-    await getDeliveryAction('spawn_topic_agent')!(
-      { name: 'Nested', brief: 'nope' },
-      { ...SESSION, messaging_group_id: 'mg-topic' } as Session,
-      undefined as never,
-    );
+    await getDeliveryAction('spawn_topic_agent')!({ name: 'Nested', brief: 'nope' }, {
+      ...SESSION,
+      messaging_group_id: 'mg-topic',
+    } as Session);
 
     expect(mockCreateThread).not.toHaveBeenCalled();
     expect(mockCreateAgentGroup).not.toHaveBeenCalled();

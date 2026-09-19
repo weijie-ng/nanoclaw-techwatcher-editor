@@ -408,6 +408,9 @@ export async function notifyOpFailure(
         }),
         processAfter: null,
         recurrence: null,
+        // Context-only: this note tells the agent its op failed but must NOT
+        // wake a turn on its own (createInboundRecord defaults trigger to true).
+        trigger: false,
       }),
     );
   } catch (noteErr) {

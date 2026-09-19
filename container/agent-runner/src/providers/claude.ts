@@ -1,7 +1,7 @@
 import { query as sdkQuery, type HookCallback, type PreCompactHookInput } from '@anthropic-ai/claude-agent-sdk';
 
 import { clearContainerToolInFlight, setContainerToolInFlight } from '../db/container-state.js';
-import { setContainerThinkingLine } from '../mailbox/sqlite/connection.js';
+import { clearContainerProgress, setContainerThinkingLine } from '../mailbox/sqlite/connection.js';
 import type { MemorySessionHookRegistration } from '../memory/session-hook.js';
 import type { ResolvedRuntimeConfiguration } from '../provider-contracts/registry.js';
 // The execution-policy, inference, MCP, and memory derivations live in
@@ -144,6 +144,99 @@ class MessageStream {
  * script. Defense-in-depth: if SDK_DISALLOWED_TOOLS slips through somehow,
  * block the call here instead of letting the agent hang.
  */
+
+// Tool-label progress helpers: reduce a tool call to one short host-renderable
+// line ("Bash(pnpm test)"). The label rides into the recent_tools ring buffer
+// alongside the bare tool name; the host progress module renders it.
+const TOOL_DETAIL_MAX = 44;
+const PATH_SEGMENTS_KEPT = 2;
+
+function collapse(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function clampDetail(detail: string): string {
+  const flat = collapse(detail);
+  return flat.length <= TOOL_DETAIL_MAX ? flat : flat.slice(0, TOOL_DETAIL_MAX - 1).trimEnd() + '…';
+}
+
+function shortenPath(p: string): string {
+  const segments = p.split('/').filter(Boolean);
+  return segments.slice(-PATH_SEGMENTS_KEPT).join('/');
+}
+
+function urlHost(raw: string): string {
+  try {
+    return new URL(raw).host || raw;
+    // eslint-disable-next-line no-catch-all/no-catch-all -- an unparseable url is still worth showing verbatim
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Display name for a tool. MCP tools arrive as `mcp__<server>__<tool>`, which
+ * eats a whole progress line in prefix; the tool half is the informative part.
+ */
+export function displayToolName(toolName: string): string {
+  if (!toolName.startsWith('mcp__')) return toolName;
+  const parts = toolName.split('__').filter(Boolean);
+  return parts[parts.length - 1] || toolName;
+}
+
+/**
+ * Reduce a tool's input to the one field that says which call this was.
+ *
+ * Returns '' when there is nothing worth showing — the caller then renders the
+ * bare tool name. Everything is clamped, so an input carrying a whole file's
+ * contents costs one short line, not the message.
+ */
+export function summarizeToolInput(toolName: string, input: Record<string, unknown> | undefined): string {
+  if (!input) return '';
+  const str = (key: string): string => (typeof input[key] === 'string' ? (input[key] as string) : '');
+  switch (displayToolName(toolName)) {
+    case 'Bash':
+      return clampDetail(str('command'));
+    case 'Read':
+    case 'Write':
+    case 'Edit':
+    case 'NotebookEdit':
+      return clampDetail(shortenPath(str('file_path')));
+    case 'Glob':
+      return clampDetail(str('pattern'));
+    case 'Grep': {
+      const where = shortenPath(str('path'));
+      const pattern = str('pattern');
+      return clampDetail(where ? `${pattern} · ${where}` : pattern);
+    }
+    case 'WebSearch':
+      return clampDetail(str('query'));
+    case 'WebFetch':
+      return clampDetail(urlHost(str('url')));
+    case 'Task':
+    case 'Agent':
+      return clampDetail(str('description'));
+    case 'Skill':
+      return clampDetail(str('skill'));
+    default: {
+      // Unknown tool (an MCP tool, most often). Object key order follows the
+      // model's own JSON, so the first string field is the closest thing to a
+      // primary argument available without a per-tool schema.
+      for (const value of Object.values(input)) {
+        if (typeof value === 'string' && collapse(value)) return clampDetail(value);
+      }
+      return '';
+    }
+  }
+}
+
+/** "Bash(pnpm test)" — what the host renders as one progress line. */
+export function toolLabel(toolName: string, input: Record<string, unknown> | undefined): string {
+  const name = displayToolName(toolName);
+  const detail = summarizeToolInput(toolName, input);
+  return detail ? `${name}(${detail})` : name;
+}
+
 const preToolUseHook: HookCallback = async (input) => {
   const i = input as { tool_name?: string; tool_input?: Record<string, unknown> };
   const toolName = i.tool_name ?? '';
@@ -165,7 +258,7 @@ const preToolUseHook: HookCallback = async (input) => {
   const declaredTimeoutMs =
     toolName === 'Bash' && typeof i.tool_input?.timeout === 'number' ? (i.tool_input.timeout as number) : null;
   try {
-    setContainerToolInFlight(toolName, declaredTimeoutMs);
+    setContainerToolInFlight(toolName, declaredTimeoutMs, toolLabel(toolName, i.tool_input));
   } catch (err) {
     log(`PreToolUse: failed to record container_state: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -263,6 +356,16 @@ function lastThinkingText(message: unknown): string | null {
     return typeof block.thinking === 'string' && block.thinking.trim() ? block.thinking : null;
   }
   return null;
+}
+
+/** Drop the per-turn progress scratch (tool list + thinking line). Best-effort,
+ *  like every other container_state write — a failure must never break a turn. */
+function clearProgressBestEffort(): void {
+  try {
+    clearContainerProgress();
+  } catch (err) {
+    log(`Failed to clear progress state: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 /** The real clock for archive names and rotation stamps; tests hand the history functions a fixed one. */
@@ -408,8 +511,9 @@ export class ClaudeProvider implements AgentProvider {
 
     async function* translateEvents(): AsyncGenerator<ProviderEvent> {
       let messageCount = 0;
-      for await (const message of sdkResult) {
-        if (aborted) return;
+      try {
+        for await (const message of sdkResult) {
+          if (aborted) return;
         messageCount++;
 
         // Yield activity for every SDK event so the poll loop knows the agent is working
@@ -438,7 +542,7 @@ export class ClaudeProvider implements AgentProvider {
             ?.content;
           if (Array.isArray(content)) {
             const text = content
-              .filter((block) => block.type === 'text' && block.text)
+              .filter((block) => block != null && block.type === 'text' && block.text)
               .map((block) => block.text)
               .join('');
             if (text) yield { type: 'text', text };
@@ -509,11 +613,26 @@ export class ClaudeProvider implements AgentProvider {
           yield { type: 'progress', message: tn.summary || 'Task notification' };
         }
       }
-      log(`Query completed after ${messageCount} SDK messages`);
+        log(`Query completed after ${messageCount} SDK messages`);
+      } finally {
+        // A turn is over — drop the progress scratch state so the NEXT turn
+        // starts from an empty tool list and no stale thinking line. In
+        // `finally` because the turn also ends via the abort path
+        // (`if (aborted) return`) and via an SDK throw; a leftover tool list
+        // from a crashed turn is exactly what the host would render next.
+        clearProgressBestEffort();
+      }
     }
 
     return {
-      push: (msg) => stream.push(msg),
+      push: (msg) => {
+        // A pushed message starts a NEW turn inside the SAME query — the poll
+        // loop feeds follow-ups into the live stream rather than opening a
+        // fresh query. Reset the progress scratch here so turn N+1 doesn't
+        // render turn N's tool list.
+        clearProgressBestEffort();
+        stream.push(msg);
+      },
       end: () => stream.end(),
       events: translateEvents(),
       abort: () => {

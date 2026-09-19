@@ -63,16 +63,16 @@ function chatIdFromPlatform(platformId: string): string | null {
 
 /** Every distinct agent group wired to this Telegram chat, across the
  *  chat-level conversation AND any forum topics (separate messaging groups). */
-export function agentGroupsWiredToChat(chatId: string): string[] {
-  const rows = getDb()
-    .prepare(
-      `SELECT DISTINCT mga.agent_group_id AS id
-         FROM messaging_group_agents mga
-         JOIN messaging_groups mg ON mg.id = mga.messaging_group_id
-        WHERE mg.channel_type = 'telegram'
-          AND (mg.platform_id = ? OR mg.platform_id LIKE ?)`,
-    )
-    .all(`telegram:${chatId}`, `telegram:${chatId}:%`) as { id: string }[];
+export async function agentGroupsWiredToChat(chatId: string): Promise<string[]> {
+  const rows = await getDb().all<{ id: string }>(
+    `SELECT DISTINCT mga.agent_group_id AS id
+       FROM messaging_group_agents mga
+       JOIN messaging_groups mg ON mg.id = mga.messaging_group_id
+      WHERE mg.channel_type = 'telegram'
+        AND (mg.platform_id = ? OR mg.platform_id LIKE ?)`,
+    `telegram:${chatId}`,
+    `telegram:${chatId}:%`,
+  );
   return rows.map((r) => r.id);
 }
 
@@ -104,7 +104,7 @@ export async function handleAddMember(event: InboundEvent): Promise<boolean> {
   }
 
   const caller = content ? callerUserId(content) : null;
-  if (!caller || !(isOwner(caller) || isGlobalAdmin(caller))) {
+  if (!caller || !((await isOwner(caller)) || (await isGlobalAdmin(caller)))) {
     await reply(event, 'Permission denied: only an owner or global admin can add members.');
     return true;
   }
@@ -117,7 +117,7 @@ export async function handleAddMember(event: InboundEvent): Promise<boolean> {
     return true;
   }
 
-  const groups = agentGroupsWiredToChat(chatId);
+  const groups = await agentGroupsWiredToChat(chatId);
   if (groups.length === 0) {
     await reply(event, 'No agents are wired to this group, so there is nothing to grant.');
     return true;
@@ -141,11 +141,11 @@ export async function handleAddMember(event: InboundEvent): Promise<boolean> {
   const skipped: string[] = [];
   for (const r of results) {
     if (r.userId && r.inGroup) {
-      if (!getUser(r.userId)) {
-        createUser({ id: r.userId, kind: 'telegram', display_name: `@${r.username}`, created_at: now });
+      if (!(await getUser(r.userId))) {
+        await createUser({ id: r.userId, kind: 'telegram', display_name: `@${r.username}`, created_at: now });
       }
       for (const g of groups) {
-        addMember({ user_id: r.userId, agent_group_id: g, added_by: caller, added_at: now });
+        await addMember({ user_id: r.userId, agent_group_id: g, added_by: caller, added_at: now });
       }
       added.push(`@${r.username}`);
     } else {

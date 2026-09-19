@@ -61,7 +61,7 @@ export interface MailboxOperations {
   getDestinations(): Destination[];
   findDestinationByName(name: string): Destination | undefined;
   findDestinationByRouting(channelType: string, platformId: string): Destination | undefined;
-  setContainerToolInFlight(tool: string, declaredTimeoutMs: number | null): void;
+  setContainerToolInFlight(tool: string, declaredTimeoutMs: number | null, label?: string): void;
   clearContainerToolInFlight(): void;
   clearStaleProcessingAcks(): void;
 }

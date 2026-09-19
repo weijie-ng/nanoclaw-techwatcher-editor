@@ -30,61 +30,63 @@ function mg(overrides: Partial<MessagingGroup> & { id: string; platform_id: stri
   } as MessagingGroup;
 }
 
-beforeEach(() => {
-  runMigrations(initTestDb());
+beforeEach(async () => {
+  await runMigrations(await initTestDb());
 });
 
-afterEach(() => {
-  closeDb();
+afterEach(async () => {
+  await closeDb();
 });
 
 describe('findParentMessagingGroup', () => {
-  it('finds the chat a topic id extends', () => {
-    createMessagingGroup(mg({ id: 'mg-chat', platform_id: 'telegram:-1001' }));
+  it('finds the chat a topic id extends', async () => {
+    await createMessagingGroup(mg({ id: 'mg-chat', platform_id: 'telegram:-1001' }));
 
-    expect(findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001:42')?.id).toBe('mg-chat');
+    expect((await findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001:42'))?.id).toBe('mg-chat');
   });
 
-  it('does not treat a numeric sibling as a parent', () => {
+  it('does not treat a numeric sibling as a parent', async () => {
     // 'telegram:-100' is a STRING prefix of 'telegram:-1001', but not at a
     // delimiter boundary — two unrelated chats.
-    createMessagingGroup(mg({ id: 'mg-other', platform_id: 'telegram:-100' }));
+    await createMessagingGroup(mg({ id: 'mg-other', platform_id: 'telegram:-100' }));
 
-    expect(findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001')).toBeUndefined();
+    expect(await findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001')).toBeUndefined();
   });
 
-  it('is not its own parent', () => {
-    createMessagingGroup(mg({ id: 'mg-chat', platform_id: 'telegram:-1001' }));
+  it('is not its own parent', async () => {
+    await createMessagingGroup(mg({ id: 'mg-chat', platform_id: 'telegram:-1001' }));
 
-    expect(findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001')).toBeUndefined();
+    expect(await findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001')).toBeUndefined();
   });
 
-  it('returns the NEAREST ancestor when both a chat and a topic are registered', () => {
-    createMessagingGroup(mg({ id: 'mg-chat', platform_id: 'telegram:-1001' }));
-    createMessagingGroup(mg({ id: 'mg-topic', platform_id: 'telegram:-1001:42' }));
+  it('returns the NEAREST ancestor when both a chat and a topic are registered', async () => {
+    await createMessagingGroup(mg({ id: 'mg-chat', platform_id: 'telegram:-1001' }));
+    await createMessagingGroup(mg({ id: 'mg-topic', platform_id: 'telegram:-1001:42' }));
 
-    expect(findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001:42:7')?.id).toBe('mg-topic');
+    expect((await findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001:42:7'))?.id).toBe('mg-topic');
   });
 
-  it('ignores a sibling adapter instance — a different bot identity', () => {
-    createMessagingGroup(mg({ id: 'mg-chat', platform_id: 'telegram:-1001', instance: 'telegram-second' }));
+  it('ignores a sibling adapter instance — a different bot identity', async () => {
+    await createMessagingGroup(mg({ id: 'mg-chat', platform_id: 'telegram:-1001', instance: 'telegram-second' }));
 
-    expect(findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001:42')).toBeUndefined();
-    expect(findParentMessagingGroup('telegram', 'telegram-second', 'telegram:-1001:42')?.id).toBe('mg-chat');
+    expect(await findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001:42')).toBeUndefined();
+    expect((await findParentMessagingGroup('telegram', 'telegram-second', 'telegram:-1001:42'))?.id).toBe('mg-chat');
   });
 
-  it("carries the parent's decisions, not just its identity", () => {
-    createMessagingGroup(mg({ id: 'mg-chat', platform_id: 'telegram:-1001', unknown_sender_policy: 'public' }));
-    setMessagingGroupDeniedAt('mg-chat', '2026-08-12T00:00:00.000Z');
+  it("carries the parent's decisions, not just its identity", async () => {
+    await createMessagingGroup(mg({ id: 'mg-chat', platform_id: 'telegram:-1001', unknown_sender_policy: 'public' }));
+    await setMessagingGroupDeniedAt('mg-chat', '2026-08-12T00:00:00.000Z');
 
-    const parent = findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001:42');
+    const parent = await findParentMessagingGroup('telegram', 'telegram', 'telegram:-1001:42');
     expect(parent?.denied_at).toBe('2026-08-12T00:00:00.000Z');
     expect(parent?.unknown_sender_policy).toBe('public');
   });
 
-  it('supports path-shaped sub-conversation ids too', () => {
-    createMessagingGroup(mg({ id: 'mg-repo', channel_type: 'github', instance: 'github', platform_id: 'github:o/r' }));
+  it('supports path-shaped sub-conversation ids too', async () => {
+    await createMessagingGroup(
+      mg({ id: 'mg-repo', channel_type: 'github', instance: 'github', platform_id: 'github:o/r' }),
+    );
 
-    expect(findParentMessagingGroup('github', 'github', 'github:o/r/issues/12')?.id).toBe('mg-repo');
+    expect((await findParentMessagingGroup('github', 'github', 'github:o/r/issues/12'))?.id).toBe('mg-repo');
   });
 });

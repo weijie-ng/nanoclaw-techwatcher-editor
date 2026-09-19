@@ -76,13 +76,13 @@ async function dispatchPlainMessage(extractReplyContext?: (raw: Record<string, n
   return inbound;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   captured.chat = null;
-  runMigrations(initTestDb());
+  await runMigrations(await initTestDb());
 });
 
-afterEach(() => {
-  closeDb();
+afterEach(async () => {
+  await closeDb();
 });
 
 describe('resolveInboundMention', () => {

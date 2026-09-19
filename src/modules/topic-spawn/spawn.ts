@@ -117,8 +117,10 @@ function threadCreator(adapter: ChannelAdapter): ThreadCreatingAdapter | null {
  * too — in which case the adapter's own `createThread` is the backstop
  * (Telegram, for one, refuses to nest topics).
  */
-function isSubConversation(mg: MessagingGroup): boolean {
-  return findParentMessagingGroup(mg.channel_type, mg.instance ?? mg.channel_type, mg.platform_id) !== undefined;
+async function isSubConversation(mg: MessagingGroup): Promise<boolean> {
+  return (
+    (await findParentMessagingGroup(mg.channel_type, mg.instance ?? mg.channel_type, mg.platform_id)) !== undefined
+  );
 }
 
 /**
@@ -134,22 +136,22 @@ function isSubConversation(mg: MessagingGroup): boolean {
  * permissions module there is no gate at all (core defaults to allow-all)
  * and the synthetic id is fine.
  */
-function replaySenderId(): string {
-  if (hasTable(getDb(), 'user_roles')) {
-    const owner = getOwners()[0];
+async function replaySenderId(): Promise<string> {
+  if (await hasTable(getDb(), 'user_roles')) {
+    const owner = (await getOwners())[0];
     if (owner) return owner.user_id;
   }
   return 'system:topic-spawn';
 }
 
 /** Guard precheck: malformed requests are answered without ever creating a hold. */
-export function validateSpawnTopicAgent(content: Record<string, unknown>, session: Session): boolean {
+export async function validateSpawnTopicAgent(content: Record<string, unknown>, session: Session): Promise<boolean> {
   const { name } = readRequest(content);
   if (!name) {
     notifyAgent(session, 'spawn_topic_agent failed: name is required.');
     return false;
   }
-  if (!getAgentGroup(session.agent_group_id)) {
+  if (!(await getAgentGroup(session.agent_group_id))) {
     notifyAgent(session, 'spawn_topic_agent failed: source agent group not found.');
     log.warn('spawn_topic_agent failed: missing source group', { sessionAgentGroup: session.agent_group_id, name });
     return false;
@@ -160,7 +162,7 @@ export function validateSpawnTopicAgent(content: Record<string, unknown>, sessio
 /** Guard hold: card the requesting group's admin chain. */
 export async function requestSpawnTopicAgentHold(content: Record<string, unknown>, session: Session): Promise<void> {
   const { name, instructions, brief } = readRequest(content);
-  const sourceGroup = getAgentGroup(session.agent_group_id);
+  const sourceGroup = await getAgentGroup(session.agent_group_id);
   if (!sourceGroup) return;
 
   await requestApproval({
@@ -180,7 +182,7 @@ export async function requestSpawnTopicAgentHold(content: Record<string, unknown
 /** Guard allow body: performs the spawn (fresh global-scope call or approved replay). */
 export async function spawnTopicAgent(content: Record<string, unknown>, session: Session): Promise<void> {
   const request = readRequest(content);
-  const sourceGroup = getAgentGroup(session.agent_group_id);
+  const sourceGroup = await getAgentGroup(session.agent_group_id);
   if (!request.name || !sourceGroup) return; // precheck already answered the requester
 
   await performSpawnTopicAgent(request, session, sourceGroup, (text) => notifyAgent(session, text));
@@ -208,7 +210,7 @@ async function performSpawnTopicAgent(
   const { name, instructions, brief } = request;
 
   // 1. The chat we spawn a sibling topic in is the session's own chat.
-  const parentMg = session.messaging_group_id ? getMessagingGroup(session.messaging_group_id) : undefined;
+  const parentMg = session.messaging_group_id ? await getMessagingGroup(session.messaging_group_id) : undefined;
   if (!parentMg) {
     notify(`Cannot spawn "${name}": this session isn't attached to a chat, so there's no conversation to spawn in.`);
     log.warn('spawn_topic_agent failed: session has no messaging group', { sessionId: session.id });
@@ -242,7 +244,7 @@ async function performSpawnTopicAgent(
 
   // 3. One level only — see isSubConversation for how this is detected
   //    without a parent/child column.
-  if (isSubConversation(parentMg)) {
+  if (await isSubConversation(parentMg)) {
     notify(`Cannot spawn "${name}": this chat is already a topic. Spawn new topics from the main chat instead.`);
     log.info('spawn_topic_agent refused: caller is already a sub-conversation', {
       messagingGroupId: parentMg.id,
@@ -269,7 +271,7 @@ async function performSpawnTopicAgent(
   //    path-traversal check mirror performCreateAgent exactly.
   let folder = slug;
   let folderSuffix = 2;
-  while (getAgentGroupByFolder(folder)) {
+  while (await getAgentGroupByFolder(folder)) {
     folder = `${slug}-${folderSuffix}`;
     folderSuffix++;
   }
@@ -289,11 +291,11 @@ async function performSpawnTopicAgent(
     agent_provider: null,
     created_at: now,
   };
-  createAgentGroup(newGroup);
+  await createAgentGroup(newGroup);
   // Same inheritance rule as the subagent path: the child runs on its
   // parent's EFFECTIVE provider, never the instance-wide default, so it is
   // never spawned on a runtime this install can't reach.
-  const parentConfig = getContainerConfig(sourceGroup.id);
+  const parentConfig = await getContainerConfig(sourceGroup.id);
   const parentProvider = parentConfig?.provider ?? 'claude';
   // Prepend the shared-bot identity clause (see TOPIC_AGENT_IDENTITY_PREAMBLE)
   // so every topic agent, even a bare spawn with no instructions, knows the
@@ -317,7 +319,7 @@ async function performSpawnTopicAgent(
   // behaves. Left unset when the parent has none, so the provider default still
   // applies — inheriting `undefined` must not look like a decision.
   if (parentConfig?.model) {
-    updateContainerConfigScalars(agentGroupId, { model: parentConfig.model });
+    await updateContainerConfigScalars(agentGroupId, { model: parentConfig.model });
   }
 
   // 6. The topic is its own messaging group — a 3-part platform_id on a
@@ -338,7 +340,7 @@ async function performSpawnTopicAgent(
     denied_at: null,
     created_at: now,
   };
-  createMessagingGroup(topicMg);
+  await createMessagingGroup(topicMg);
 
   // 7. Wire it. Engagement comes from the CHANNEL DECLARATION for a group
   //    context (resolveWiringDefaults), exactly as every other
@@ -378,7 +380,7 @@ async function performSpawnTopicAgent(
   //    to 'known' when the parent wiring can't be resolved keeps the rule
   //    one-directional: a spawn can only ever be as strict as the chat it came
   //    from, never looser.
-  const parentWiring = getMessagingGroupAgentByPair(parentMg.id, sourceGroup.id);
+  const parentWiring = await getMessagingGroupAgentByPair(parentMg.id, sourceGroup.id);
   let engage: { engage_mode: 'pattern' | 'mention' | 'mention-sticky'; engage_pattern: string | null };
   try {
     engage = resolveWiringDefaults(channelKey, true, name, parentMg.channel_type);
@@ -386,7 +388,7 @@ async function performSpawnTopicAgent(
     engage = { engage_mode: 'mention', engage_pattern: null };
     log.warn('spawn_topic_agent: channel declares malformed group defaults, wiring as mention', { channelKey, err });
   }
-  createMessagingGroupAgent({
+  await createMessagingGroupAgent({
     id: generateId('mga'),
     messaging_group_id: messagingGroupId,
     agent_group_id: agentGroupId,
@@ -407,11 +409,16 @@ async function performSpawnTopicAgent(
   //    are implicit members and need no row. Guarded on the table: the
   //    permissions module is optional (same hasTable discipline as
   //    ensureAgentDestinationForWiring).
-  if (hasTable(getDb(), 'agent_group_members')) {
-    for (const member of getMembers(sourceGroup.id)) {
+  if (await hasTable(getDb(), 'agent_group_members')) {
+    for (const member of await getMembers(sourceGroup.id)) {
       // added_by carries the original grantor forward — the access these
       // people have here is the access they were granted over there.
-      addMember({ user_id: member.user_id, agent_group_id: agentGroupId, added_by: member.added_by, added_at: now });
+      await addMember({
+        user_id: member.user_id,
+        agent_group_id: agentGroupId,
+        added_by: member.added_by,
+        added_at: now,
+      });
     }
   }
 
@@ -420,16 +427,16 @@ async function performSpawnTopicAgent(
   //    Guarded on the table — agent-to-agent is an optional module; without
   //    it the pair simply can't message each other directly.
   let localName = slug;
-  if (hasTable(getDb(), 'agent_destinations')) {
+  if (await hasTable(getDb(), 'agent_destinations')) {
     // Unlike performCreateAgent, a name collision suffixes instead of
     // refusing: by this point the topic and the agent group exist, and a
     // refusal here would strand them.
     let suffix = 2;
-    while (getDestinationByName(sourceGroup.id, localName)) {
+    while (await getDestinationByName(sourceGroup.id, localName)) {
       localName = `${slug}-${suffix}`;
       suffix++;
     }
-    createDestination({
+    await createDestination({
       agent_group_id: sourceGroup.id,
       local_name: localName,
       target_type: 'agent',
@@ -438,11 +445,11 @@ async function performSpawnTopicAgent(
     });
     let parentName = 'parent';
     let parentSuffix = 2;
-    while (getDestinationByName(agentGroupId, parentName)) {
+    while (await getDestinationByName(agentGroupId, parentName)) {
       parentName = `parent-${parentSuffix}`;
       parentSuffix++;
     }
-    createDestination({
+    await createDestination({
       agent_group_id: agentGroupId,
       local_name: parentName,
       target_type: 'agent',
@@ -455,7 +462,7 @@ async function performSpawnTopicAgent(
     // agent-to-agent/db/agent-destinations.ts — forgetting this causes
     // "dropped: unknown destination" when the concierge tries to send to the
     // agent it just spawned.
-    writeDestinations(session.agent_group_id, session.id);
+    await writeDestinations(session.agent_group_id, session.id);
   }
 
   // 10. Replay the brief into the new topic so the new agent wakes with the
@@ -486,7 +493,7 @@ async function performSpawnTopicAgent(
           timestamp: new Date().toISOString(),
           // Display name credits the concierge that relayed it; the identity
           // is the one the access gate resolves (see replaySenderId).
-          content: JSON.stringify({ text: brief, sender: sourceGroup.name, senderId: replaySenderId() }),
+          content: JSON.stringify({ text: brief, sender: sourceGroup.name, senderId: await replaySenderId() }),
           isGroup: true,
           isMention: true,
         },

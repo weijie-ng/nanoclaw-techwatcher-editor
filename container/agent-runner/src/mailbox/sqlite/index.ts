@@ -208,7 +208,7 @@ export class SqliteAgentMailbox implements AgentMailbox {
     return sqliteFindByRouting(channelType, platformId);
   }
 
-  setContainerToolInFlight(tool: string, declaredTimeoutMs: number | null): void {
+  setContainerToolInFlight(tool: string, declaredTimeoutMs: number | null, label?: string): void {
     const timeout =
       declaredTimeoutMs !== null && Number.isSafeInteger(declaredTimeoutMs) && declaredTimeoutMs >= 0
         ? declaredTimeoutMs
@@ -219,7 +219,7 @@ export class SqliteAgentMailbox implements AgentMailbox {
       toolStartedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-    sqliteSetContainerToolInFlight(record.currentTool!, record.toolDeclaredTimeoutMs);
+    sqliteSetContainerToolInFlight(record.currentTool!, record.toolDeclaredTimeoutMs, label);
   }
 
   clearContainerToolInFlight = sqliteClearContainerToolInFlight;

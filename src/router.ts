@@ -264,7 +264,11 @@ export async function routeInbound(event: InboundEvent): Promise<void> {
     //    fresh "Connect this channel?" card in the owner's DM, unbounded.
     //  - unknown_sender_policy — a topic must be exactly as open (or as
     //    closed) as the chat it lives in, never the channel-wide default.
-    const parentMg = await findParentMessagingGroup(event.channelType, event.instance ?? event.channelType, event.platformId);
+    const parentMg = await findParentMessagingGroup(
+      event.channelType,
+      event.instance ?? event.channelType,
+      event.platformId,
+    );
     if (parentMg?.denied_at) {
       log.debug('Message dropped — the parent chat was denied by owner', {
         parentMessagingGroupId: parentMg.id,

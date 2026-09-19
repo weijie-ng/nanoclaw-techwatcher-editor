@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, test } from 'bun:test';
 
 import {
   clearContainerProgress,
-  clearContainerToolInFlight,
   getOutboundDb,
   initTestSessionDb,
   setContainerThinkingLine,
-  setContainerToolInFlight,
-} from './connection.js';
+  sqliteClearContainerToolInFlight as clearContainerToolInFlight,
+  sqliteSetContainerToolInFlight as setContainerToolInFlight,
+} from '../mailbox/sqlite/connection.js';
 
 beforeEach(() => {
   initTestSessionDb();

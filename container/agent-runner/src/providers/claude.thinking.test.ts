@@ -27,9 +27,15 @@ mock.module('@anthropic-ai/claude-agent-sdk', () => ({
   },
 }));
 
-const { ClaudeProvider, summarizeThinkingText } = await import('./claude.js');
+// Two-step provider registration (mirrors the sibling provider tests): index.js
+// registers the 'claude' factory, provider-contracts/index.js attaches its
+// runtime contract, so createProvider('claude') resolves MCP servers + policy.
+await import('./index.js');
+await import('../provider-contracts/index.js');
+const { summarizeThinkingText } = await import('./claude.js');
+const { createProvider } = await import('./factory.js');
 const { MEMORY_SESSION_HOOK } = await import('../memory/session-hook.js');
-const { initTestSessionDb, closeSessionDb } = await import('../db/connection.js');
+const { initTestSessionDb, closeSessionDb } = await import('../mailbox/sqlite/connection.js');
 
 let tmp: string;
 let prevHome: string | undefined;
@@ -60,9 +66,11 @@ function progressState(): ProgressRow {
   return (row as ProgressRow | null) ?? { recent_tools: null, thinking_line: null };
 }
 
-/** A started turn's event stream. The provider requires the memory hook. */
+/** A started turn's event stream. The provider requires the memory hook, and
+ *  must be built through the factory so its runtime contract (MCP servers,
+ *  execution policy) is resolved — the constructor no longer self-resolves. */
 function startQuery(): AsyncGenerator<{ type: string; text?: string | null }> {
-  const provider = new ClaudeProvider({});
+  const provider = createProvider('claude');
   provider.registerMemorySessionHook(MEMORY_SESSION_HOOK);
   return provider.query({ prompt: 'hi', cwd: tmp }).events as AsyncGenerator<{ type: string; text?: string | null }>;
 }
@@ -103,7 +111,8 @@ describe('assistant-message thinking capture', () => {
     await events.next(); // activity (init)
     await events.next(); // init
     await events.next(); // activity (assistant)
-    await events.next(); // activity (result) — the assistant branch has now run
+    await events.next(); // text ('ignore me') — the assistant's text block surfaces mid-turn
+    await events.next(); // activity (result) — the assistant branch (thinking capture) has now run
 
     expect(progressState().thinking_line).toBe('Now checking the wiring defaults.');
 

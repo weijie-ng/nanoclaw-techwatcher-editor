@@ -35,9 +35,9 @@ export const topicsSpawn = defineGuardedAction({
       return false;
     }
   },
-  decide: (input) => {
+  decide: async (input) => {
     if (input.actor.kind !== 'agent') return DENY('spawn_topic_agent is a container-originated action.');
-    const cliScope = getContainerConfig(input.actor.agentGroupId)?.cli_scope ?? 'group';
+    const cliScope = (await getContainerConfig(input.actor.agentGroupId))?.cli_scope ?? 'group';
     if (cliScope === 'global') {
       return ALLOW('trusted global-scope agent group');
     }
