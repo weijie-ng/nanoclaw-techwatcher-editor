@@ -154,9 +154,17 @@ export function parseMcpServerConfig(input: Record<string, unknown>): McpServerC
     } catch (err) {
       throw new Error('url must be a valid HTTP(S) URL', { cause: err });
     }
-    const loopback = ['localhost', '127.0.0.1', '[::1]', 'host.docker.internal'].includes(parsed.hostname);
-    if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && loopback)) {
-      throw new Error('url must use HTTPS (plain HTTP is allowed only for localhost and host.docker.internal)');
+    // Plain HTTP is allowed to loopback, plus this install's cleartext LAN
+    // gateway at 172.26.2.56:4000 — the same host:port the model already rides
+    // over HTTP via ANTHROPIC_BASE_URL, with auth injected by OneCLI keyed on
+    // that host. The gateway serves no TLS, so its /mcp endpoint can only be
+    // reached over http://. Fork-local allowance; not upstream.
+    const plaintextHosts = ['localhost', '127.0.0.1', '[::1]', 'host.docker.internal', '172.26.2.56'];
+    const plaintextOk = plaintextHosts.includes(parsed.hostname);
+    if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && plaintextOk)) {
+      throw new Error(
+        'url must use HTTPS (plain HTTP is allowed only for localhost, host.docker.internal, and 172.26.2.56)',
+      );
     }
     if (parsed.username || parsed.password || parsed.hash) {
       throw new Error('url must not contain credentials or fragments; use OneCLI for authentication');
