@@ -1,0 +1,82 @@
+{
+  "skill_name": "publication-format",
+  "evals": [
+    {
+      "id": 1,
+      "name": "morning-brief-one-dominant-story",
+      "prompt": "put together a morning brief on this week's sanctions news for me",
+      "expected_output": "Triggers. Picks top-story-digest, states the choice in one line, reads only reference/top-story-digest.md. Lead item gets full Smart Brevity treatment; 3-6 digest items of equal length, each with its own why-it-matters and a link.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "flat-week-no-dominant-story",
+      "prompt": "five things worth reading on the Baltic this week, nothing huge happened",
+      "expected_output": "Triggers. Picks curated-list rather than forcing a lead item. Flat, equal-length items, no connective prose between them, every item linked and headlined in its own words.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "explainer-request-by-name",
+      "prompt": "write this up as an explainer, people keep asking me what the new export regime actually is",
+      "expected_output": "Triggers. Picks explainer-faq, not smart-brevity. Question headline, one-sentence standfirst answer, sub-heads phrased as real questions, each section answering in its first sentence and readable out of order.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "breaking-news-wire-copy",
+      "prompt": "the council just adopted the package, write it up straight, 400 words",
+      "expected_output": "Triggers. Picks inverted-pyramid. One-sentence lede carrying the outcome, descending importance, attribution in the first two paragraphs, no section headings, no closing flourish.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "format-named-explicitly",
+      "prompt": "do the summit piece in Smart Brevity",
+      "expected_output": "Triggers. The named format overrides the picker table. Reads reference/smart-brevity.md only. Axiom headline of six words or fewer, Why it matters that is not a restatement, optional blocks cut rather than padded.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "trend-with-a-person",
+      "prompt": "I've interviewed four customs brokers who are turning away clients. There's a piece in this, can you draft it",
+      "expected_output": "Triggers. Picks anecdotal-lede. Opens on one named real broker for 2-3 paragraphs, nut graf lands by paragraph four, includes a counter-case, returns to the opening person at the end.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "postmortem-with-timeline",
+      "prompt": "reconstruct how the tanker monitoring failed that night, I have the full timeline",
+      "expected_output": "Triggers. Picks martini-glass. Narrative section carries no analysis or foreshadowing, a short distinct turn, then analysis and implications shorter than the narrative, plus an accountability paragraph.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "name": "near-miss-search-not-format",
+      "prompt": "find me the latest on the summit",
+      "expected_output": "Does NOT trigger. This is a collection request; news-search handles it. No format is picked and no reference file is read.",
+      "files": []
+    },
+    {
+      "id": 9,
+      "name": "near-miss-line-level-rewrite",
+      "prompt": "this draft sounds like it was written by a bot, clean it up",
+      "expected_output": "Does NOT trigger. Structure is not the problem; humanizer owns the line-level pass. Does not restructure the piece into a skeleton.",
+      "files": []
+    },
+    {
+      "id": 10,
+      "name": "near-miss-deck-not-article",
+      "prompt": "turn the sanctions briefing into a deck for Thursday",
+      "expected_output": "Does NOT trigger. frontend-slides owns presentations. Does not produce an article skeleton or a newsletter.",
+      "files": []
+    },
+    {
+      "id": 11,
+      "name": "near-miss-verification",
+      "prompt": "is it true that 28 of the listed firms are intermediaries?",
+      "expected_output": "Does NOT trigger. fact-check owns claim verification. No format selection occurs.",
+      "files": []
+    }
+  ]
+}

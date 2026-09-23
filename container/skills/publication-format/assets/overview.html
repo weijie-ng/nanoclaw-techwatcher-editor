@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Publication formats at a glance</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #ffffff; --fg: #16202c; --muted: #5b6675; --rule: #d7dee8;
+    --panel: #eef3fa; --accent: #0033a0;
+    --tint-req: #e3e9f3; --tint-key: rgba(0, 51, 160, .28); --tint-opt: #eef1f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--fg); margin: 0;
+    font: 17px/1.6 Georgia, "Iowan Old Style", "Times New Roman", serif;
+    padding: 3rem 1.25rem 5rem;
+  }
+  main { max-width: 64rem; margin: 0 auto; }
+  h1, h2, .kicker, .fmt-name, .bname, .legend, .pagefoot, .fam-note, .pcu-lab {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  .kicker {
+    font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 .7rem; font-weight: 600;
+  }
+  h1 { font-size: 1.95rem; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 .8rem; }
+  .intro { font-size: 1.08rem; color: var(--fg); margin: 0 0 1.4rem; max-width: 44rem; }
+  .intro .ask { color: var(--accent); font-weight: 600; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 1.1rem 1.4rem;
+    font-size: .82rem; color: var(--muted);
+    padding: .85rem 1rem; background: var(--panel); border-radius: 6px;
+    margin: 0 0 2.4rem;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: .5rem; }
+  .lg-box {
+    width: 26px; height: 15px; border-radius: 2px; display: inline-block;
+    background: var(--tint-req); flex: 0 0 auto;
+  }
+  .lg-box.key { background: var(--tint-key); }
+  .lg-box.opt { background: var(--tint-opt); opacity: .55; }
+
+  h2 {
+    font-size: 1.2rem; margin: 2.4rem 0 .3rem;
+    padding-bottom: .5rem; border-bottom: 1px solid var(--rule);
+  }
+  .fam-note { font-size: .9rem; color: var(--muted); margin: 0 0 1.4rem; }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+    gap: 1.25rem;
+  }
+  .card {
+    border: 1px solid var(--rule); border-radius: 8px;
+    padding: 1.1rem 1.15rem 1.25rem;
+  }
+  .fmt-name { font-size: 1.05rem; font-weight: 700; margin: 0 0 .2rem; }
+  .fmt-use { font-size: .88rem; color: var(--muted); margin: 0 0 .9rem; line-height: 1.45; }
+
+  /* One labelled block per row: a tinted band, centred in the column, whose width is the block's
+     --span of the column (width = span) and whose row height grows with the block's length
+     (height = length). The name and budget sit centred together over the band. Stronger navy
+     fill = load-bearing. */
+  .skeleton { display: flex; flex-direction: column; gap: 3px; }
+  .brow {
+    --span: 100%; --tint: var(--tint-req);
+    display: flex; align-items: center; justify-content: center; gap: .6rem;
+    padding: .12rem .6rem; min-height: 1.9em; border-radius: 2px;
+    background: linear-gradient(to right,
+      transparent calc((100% - var(--span)) / 2), var(--tint) calc((100% - var(--span)) / 2),
+      var(--tint) calc((100% + var(--span)) / 2), transparent calc((100% + var(--span)) / 2));
+  }
+  .brow.key { --tint: var(--tint-key); }
+  .brow.opt { --tint: var(--tint-opt); opacity: .58; }
+  .brow.opt .bname { font-weight: 500; font-style: italic; }
+  .brow.w35 { --span: 35%; } .brow.w45 { --span: 45%; } .brow.w55 { --span: 55%; }
+  .brow.w70 { --span: 70%; } .brow.w85 { --span: 85%; } .brow.w100 { --span: 100%; }
+  .brow.hs { min-height: 1.5em; } .brow.hm { min-height: 1.9em; }
+  .brow.hl { min-height: 2.5em; } .brow.hx { min-height: 3.1em; }
+  .bname { flex: 0 1 auto; font-size: .86rem; font-weight: 600; }
+  .bbudget { flex: 0 1 auto; font-size: .74rem; color: var(--muted); text-align: center; }
+  .bbudget em { font-style: italic; }
+
+  .pcu {
+    margin-top: 1.05rem; padding-top: .9rem; border-top: 1px solid var(--rule);
+  }
+  .pcu-row { margin: 0 0 .75rem; }
+  .pcu-row:last-child { margin-bottom: 0; }
+  .pcu-lab {
+    font-size: .68rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin: 0 0 .3rem;
+  }
+  .pcu-list {
+    margin: 0; padding-left: 1.05rem;
+    font-size: .82rem; line-height: 1.45; color: var(--fg);
+  }
+  .pcu-list li { margin: 0 0 .3rem; }
+  .pcu-list li:last-child { margin-bottom: 0; }
+
+  .pagefoot {
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-size: .74rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <p class="kicker">Publication format</p>
+  <h1>Ten skeletons at a glance</h1>
+  <p class="intro">Every format below is a fixed order of blocks: read top to bottom, that is
+  the order the reader meets them. Each block is drawn as a labelled box whose width is its span and
+  whose height is its length, so a card reads as the format's shape, block by block. Six carry one
+  subject; four carry several. Optional blocks are cut, never reordered.
+  <span class="ask">Point at any format and ask me to explain it in depth, or to draft your piece in
+  one.</span></p>
+
+  <div class="legend">
+    <span><i class="lg-box"></i> Required block</span>
+    <span><i class="lg-box opt"></i> Optional (cut, do not fill with filler)</span>
+    <span><i class="lg-box key"></i> Load-bearing block</span>
+    <span>Box width shows span, height shows length</span>
+    <span><em>if present</em> / <em>repeats</em>: conditional or repeated block</span>
+  </div>
+
+  <h2>Article formats</h2>
+  <p class="fam-note">One subject, told one way. A newsletter's lead item may itself be written to one
+  of these; an article never contains a newsletter.</p>
+
+  <div class="grid">
+
+    <article class="card">
+      <p class="fmt-name">Smart Brevity</p>
+      <p class="fmt-use">Reader needs the takeaway fast and may act on it.</p>
+      <div class="skeleton">
+        <div class="brow w55 hs"><span class="bname">Axiom headline</span><span class="bbudget">6 words or fewer</span></div>
+        <div class="brow w85 hm"><span class="bname">Strong lede</span><span class="bbudget">1 short sentence</span></div>
+        <div class="brow key w70 hm"><span class="bname">Why it matters</span><span class="bbudget">1 to 2 sentences</span></div>
+        <div class="brow w85 hm"><span class="bname">Driving the news</span><span class="bbudget">2 to 4 bullets</span></div>
+        <div class="brow opt w70 hs"><span class="bname">By the numbers</span><span class="bbudget">3 to 5 figures</span></div>
+        <div class="brow opt w85 hs"><span class="bname">The big picture</span><span class="bbudget">2 to 3 sentences</span></div>
+        <div class="brow opt w70 hs"><span class="bname">What they're saying</span><span class="bbudget">1 to 2 quotes</span></div>
+        <div class="brow opt w70 hs"><span class="bname">The other side</span><span class="bbudget">1 to 2 sentences</span></div>
+        <div class="brow w70 hs"><span class="bname">What's next</span><span class="bbudget">1 to 2 sentences <em>if present</em></span></div>
+        <div class="brow opt w45 hs"><span class="bname">Go deeper</span><span class="bbudget">1 line</span></div>
+      </div>
+      <div class="pcu">
+        <div class="pcu-row">
+          <p class="pcu-lab">Pros</p>
+          <ul class="pcu-list">
+            <li>Reader takes the headline and the first label and leaves with the point intact; blocks are readable out of order.</li>
+            <li>Significance before detail: 'Why it matters' lands the consequence before the narrative.</li>
+            <li>Modular, so optional blocks are cut cleanly and the shape scales down to what you actually have.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Cons</p>
+          <ul class="pcu-list">
+            <li>'Why it matters' easily decays into a restatement of the lede, the commonest failure of the format.</li>
+            <li>With a single fact it becomes four blocks restating the same sentence.</li>
+            <li>The labels fight a story: if the interest is how it unfolded, the format flattens it out.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Use cases</p>
+          <ul class="pcu-list">
+            <li>A policy note or announcement a busy person reads on a phone between meetings.</li>
+            <li>A briefing where the reader will act on the information and wants the stakes first.</li>
+            <li>An update with real consequences, not a subject the reader is meeting for the first time.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <p class="fmt-name">Inverted pyramid</p>
+      <p class="fmt-use">Breaking news, wire copy, anything cut from the bottom.</p>
+      <div class="skeleton">
+        <div class="brow w45 hs"><span class="bname">Dateline</span><span class="bbudget">1 line</span></div>
+        <div class="brow key w100 hl"><span class="bname">Lede</span><span class="bbudget">1 sentence, 25 to 35 words</span></div>
+        <div class="brow w85 hm"><span class="bname">Second paragraph</span><span class="bbudget">1 to 2 sentences</span></div>
+        <div class="brow w85 hl"><span class="bname">Supporting detail</span><span class="bbudget">3 to 6 paragraphs</span></div>
+        <div class="brow w70 hm"><span class="bname">Quote</span><span class="bbudget">1 to 3 quotes, spread</span></div>
+        <div class="brow w55 hm"><span class="bname">Context</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow w45 hs"><span class="bname">Counterpoint</span><span class="bbudget">1 paragraph <em>if present</em></span></div>
+        <div class="brow opt w35 hs"><span class="bname">Background tail</span><span class="bbudget">1 to 3 paragraphs</span></div>
+      </div>
+      <div class="pcu">
+        <div class="pcu-row">
+          <p class="pcu-lab">Pros</p>
+          <ul class="pcu-list">
+            <li>Cuts cleanly from the bottom at any point and still stands as a complete story.</li>
+            <li>Most newsworthy fact first, so it survives a preview pane or a reader who stops after two paragraphs.</li>
+            <li>One continuous narrative with no labels to maintain.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Cons</p>
+          <ul class="pcu-list">
+            <li>No flagged significance: the reader has to infer why it matters.</li>
+            <li>A satisfying kicker breaks it; any closing flourish means it no longer cuts from the bottom.</li>
+            <li>Punishes sequence-led stories, where a reconstruction reads flat and out of order.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Use cases</p>
+          <ul class="pcu-list">
+            <li>Breaking news, court rulings, election results, incident reports.</li>
+            <li>A press release being rewritten as copy that an editor may truncate.</li>
+            <li>Wire-style copy for narrow columns and feed previews.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <p class="fmt-name">Anecdotal lede</p>
+      <p class="fmt-use">Features and trend pieces with a human at the centre.</p>
+      <div class="skeleton">
+        <div class="brow w85 hl"><span class="bname">Anecdotal lede</span><span class="bbudget">2 to 3 paragraphs</span></div>
+        <div class="brow w35 hs"><span class="bname">Turn</span><span class="bbudget">1 sentence</span></div>
+        <div class="brow key w100 hm"><span class="bname">Nut graf</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow w85 hl"><span class="bname">Evidence</span><span class="bbudget">2 to 4 paragraphs</span></div>
+        <div class="brow opt w70 hm"><span class="bname">Second case</span><span class="bbudget">1 to 2 paragraphs, usual</span></div>
+        <div class="brow w70 hm"><span class="bname">Counter-case</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow w85 hm"><span class="bname">Causes</span><span class="bbudget">2 to 3 paragraphs</span></div>
+        <div class="brow w55 hs"><span class="bname">Return</span><span class="bbudget">1 to 2 paragraphs</span></div>
+      </div>
+      <div class="pcu">
+        <div class="pcu-row">
+          <p class="pcu-lab">Pros</p>
+          <ul class="pcu-list">
+            <li>Gives the reader a person to care about before the argument arrives.</li>
+            <li>Alternates scene and thesis, keeping an abstract trend concrete throughout.</li>
+            <li>The return to the opening person closes the loop and lands the change.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Cons</p>
+          <ul class="pcu-list">
+            <li>The nut graf can fail to land: stay with the person too long and the reader never learns the argument.</li>
+            <li>A decorative scene that does not embody the thesis is just throat-clearing.</li>
+            <li>Needs a real, reported, named case; a composite or hypothetical opening is a bad essay, not this format.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Use cases</p>
+          <ul class="pcu-list">
+            <li>A trend piece where something is changing and you can show it happening to one person.</li>
+            <li>A feature where the reader has no reason to care yet and needs someone to care about first.</li>
+            <li>Reported work that widens from one named subject to a wider pattern.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <p class="fmt-name">Martini glass</p>
+      <p class="fmt-use">Post-mortems and reconstructions with a clear timeline.</p>
+      <div class="skeleton">
+        <div class="brow w55 hm"><span class="bname">Cold open</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow w70 hm"><span class="bname">Orientation</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow w100 hx"><span class="bname">Narrative</span><span class="bbudget">60 per cent of the piece</span></div>
+        <div class="brow key w35 hs"><span class="bname">The turn</span><span class="bbudget">1 paragraph</span></div>
+        <div class="brow w85 hl"><span class="bname">Analysis</span><span class="bbudget">2 to 4 paragraphs</span></div>
+        <div class="brow w70 hm"><span class="bname">Implications</span><span class="bbudget">2 to 3 paragraphs</span></div>
+        <div class="brow w55 hm"><span class="bname">Accountability</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow w45 hs"><span class="bname">Close</span><span class="bbudget">1 paragraph</span></div>
+      </div>
+      <div class="pcu">
+        <div class="pcu-row">
+          <p class="pcu-lab">Pros</p>
+          <ul class="pcu-list">
+            <li>Tells the story once, in order, so the reader has drawn half the analysis before it arrives.</li>
+            <li>The dated sequence is itself the evidence; the timeline carries the argument.</li>
+            <li>A clean gear change at the turn keeps narrative and judgment apart.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Cons</p>
+          <ul class="pcu-list">
+            <li>It never widens: the piece ends when the story ends, a glass with no base.</li>
+            <li>Analysis leaks into the narrative and spoils the turn ('in what would prove a fatal error').</li>
+            <li>A chronology with silent gaps reads as concealment.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Use cases</p>
+          <ul class="pcu-list">
+            <li>A post-mortem of an outage, an evacuation, or a collapsed negotiation.</li>
+            <li>A procurement or operational failure with a sourced, datable timeline.</li>
+            <li>A 'how it went wrong' reconstruction where the sequence is the point, not a reveal.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <p class="fmt-name">Explainer / FAQ</p>
+      <p class="fmt-use">"What is X", "why does X matter", retrieval reading.</p>
+      <div class="skeleton">
+        <div class="brow w70 hs"><span class="bname">Question headline</span><span class="bbudget">1 line</span></div>
+        <div class="brow key w85 hm"><span class="bname">Standfirst</span><span class="bbudget">1 to 2 sentences</span></div>
+        <div class="brow w85 hm"><span class="bname">What is it?</span><span class="bbudget">2 to 3 sentences</span></div>
+        <div class="brow w85 hm"><span class="bname">What just happened?</span><span class="bbudget">2 to 4 sentences</span></div>
+        <div class="brow w100 hl"><span class="bname">How does it work?</span><span class="bbudget">1 to 2 paragraphs or a list</span></div>
+        <div class="brow w85 hm"><span class="bname">Who does it affect?</span><span class="bbudget">bullets or 1 paragraph</span></div>
+        <div class="brow w70 hm"><span class="bname">Why is it controversial?</span><span class="bbudget">1 to 2 paragraphs <em>if disputed</em></span></div>
+        <div class="brow w70 hs"><span class="bname">What happens next?</span><span class="bbudget">2 to 3 sentences <em>if present</em></span></div>
+        <div class="brow opt w45 hs"><span class="bname">Where can I read more?</span><span class="bbudget">2 to 4 links</span></div>
+      </div>
+      <div class="pcu">
+        <div class="pcu-row">
+          <p class="pcu-lab">Pros</p>
+          <ul class="pcu-list">
+            <li>A retrieval structure: the reader lands on the sub-head that matches their question and leaves.</li>
+            <li>Serves a mixed audience, so experts skip ahead while newcomers read from the top.</li>
+            <li>Built to be found by search, with every section independently readable.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Cons</p>
+          <ul class="pcu-list">
+            <li>Sub-heads drift into labels ('Background', 'Analysis') and the format dies without real questions.</li>
+            <li>Invented questions to fill the shape are pure padding.</li>
+            <li>Flattens a genuine development: the question form strips the news out of a story.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Use cases</p>
+          <ul class="pcu-list">
+            <li>A 'what is X' on a new regime, treaty, or unfamiliar mechanism.</li>
+            <li>A term suddenly in the news that readers arrive already asking about.</li>
+            <li>Evergreen reference a mixed audience reaches by search rather than in a feed.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <p class="fmt-name">Delayed reveal</p>
+      <p class="fmt-use">Investigations where the finding needs context to land.</p>
+      <div class="skeleton">
+        <div class="brow w85 hm"><span class="bname">Anchoring lede</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow w70 hm"><span class="bname">Stakes</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow w85 hl"><span class="bname">The record</span><span class="bbudget">2 to 3 paragraphs</span></div>
+        <div class="brow w70 hm"><span class="bname">Provenance</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow key w55 hs"><span class="bname">The reveal</span><span class="bbudget">1 short paragraph</span></div>
+        <div class="brow w85 hl"><span class="bname">Corroboration</span><span class="bbudget">2 to 4 paragraphs</span></div>
+        <div class="brow w70 hm"><span class="bname">Response</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow w85 hm"><span class="bname">Consequence</span><span class="bbudget">2 to 3 paragraphs</span></div>
+      </div>
+      <div class="pcu">
+        <div class="pcu-row">
+          <p class="pcu-lab">Pros</p>
+          <ul class="pcu-list">
+            <li>Establishes the documents, the verification and the right of reply first, so the finding reads as a finding, not an accusation.</li>
+            <li>The delay buys a contestable fact its weight.</li>
+            <li>Provenance up front pre-empts the reader's 'how would anyone know that'.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Cons</p>
+          <ul class="pcu-list">
+            <li>A weak reveal makes the whole structure read as manipulation.</li>
+            <li>Delaying past the reader's patience loses everyone before the payoff.</li>
+            <li>Holding back a fact the reader already knows is a trick, not a structure, and they resent it.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Use cases</p>
+          <ul class="pcu-list">
+            <li>Enterprise reporting on leaked documents or a whistleblower account.</li>
+            <li>A procurement or sanctions-evasion investigation with a contestable finding.</li>
+            <li>A serious allegation whose sourcing needs explaining before it will be believed.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+  <h2>Newsletter skeletons</h2>
+  <p class="fam-note">Several items in one send. The value is in the selection and the order, not in any
+  single item.</p>
+
+  <div class="grid">
+
+    <article class="card">
+      <p class="fmt-name">Top story + digest</p>
+      <p class="fmt-use">A morning brief with one dominant story.</p>
+      <div class="skeleton">
+        <div class="brow w45 hs"><span class="bname">Masthead line</span><span class="bbudget">1 line</span></div>
+        <div class="brow w55 hs"><span class="bname">Lead headline</span><span class="bbudget">6 words or fewer</span></div>
+        <div class="brow w85 hm"><span class="bname">Lead lede</span><span class="bbudget">1 sentence</span></div>
+        <div class="brow key w70 hm"><span class="bname">Why it matters</span><span class="bbudget">1 to 2 sentences</span></div>
+        <div class="brow w85 hm"><span class="bname">Driving the news</span><span class="bbudget">2 to 4 bullets</span></div>
+        <div class="brow w55 hs"><span class="bname">What's next</span><span class="bbudget">1 sentence <em>if present</em></span></div>
+        <div class="brow w100 hl"><span class="bname">Digest items</span><span class="bbudget">3 to 6, 40 to 60 words each</span></div>
+        <div class="brow opt w45 hs"><span class="bname">Sign-off</span><span class="bbudget">1 line</span></div>
+      </div>
+      <div class="pcu">
+        <div class="pcu-row">
+          <p class="pcu-lab">Pros</p>
+          <ul class="pcu-list">
+            <li>The hierarchy is the product: item length itself signals what mattered most.</li>
+            <li>Catches the reader up in three minutes, the lead read properly and the rest skimmed.</li>
+            <li>The lead gets the full Smart Brevity treatment while the digest stays tight.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Cons</p>
+          <ul class="pcu-list">
+            <li>A flat news day forces a manufactured lead that misleads about the shape of the week.</li>
+            <li>Uneven digest items imply a ranking the reader cannot verify.</li>
+            <li>Past six digest items the reader is scanning, not reading.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Use cases</p>
+          <ul class="pcu-list">
+            <li>A recurring morning brief on a beat where one story usually dominates.</li>
+            <li>A daily or twice-weekly geopolitics or policy note.</li>
+            <li>A send where readers want the headline story in full and the rest in passing.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <p class="fmt-name">Curated list</p>
+      <p class="fmt-use">Flat linkblog, "5 things", Sunday reads.</p>
+      <div class="skeleton">
+        <div class="brow w45 hs"><span class="bname">Title and date</span><span class="bbudget">1 line</span></div>
+        <div class="brow opt w70 hs"><span class="bname">Framing line</span><span class="bbudget">1 sentence</span></div>
+        <div class="brow w85 hm"><span class="bname">Item headline</span><span class="bbudget">1 line <em>repeats</em></span></div>
+        <div class="brow w85 hm"><span class="bname">Item summary</span><span class="bbudget">1 to 2 sentences <em>repeats</em></span></div>
+        <div class="brow w55 hs"><span class="bname">Item source</span><span class="bbudget">1 line <em>repeats</em></span></div>
+        <div class="brow opt w45 hs"><span class="bname">Sign-off</span><span class="bbudget">1 line</span></div>
+      </div>
+      <div class="pcu">
+        <div class="pcu-row">
+          <p class="pcu-lab">Pros</p>
+          <ul class="pcu-list">
+            <li>Honest about a flat day: no lead, no false hierarchy.</li>
+            <li>The voice comes entirely from selection, which is the whole editorial act.</li>
+            <li>Equal items make it fast to write and fast to scan.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Cons</p>
+          <ul class="pcu-list">
+            <li>One 'and relatedly' and you have changed format mid-piece into a narrated digest.</li>
+            <li>One item three times the length of the rest wanted to be a lead, and the edition wanted a top story.</li>
+            <li>A summary that never says why an item was chosen is just a feed the reader could already get.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Use cases</p>
+          <ul class="pcu-list">
+            <li>A weekend reading list or a '5 things you should know'.</li>
+            <li>A week where several things happened and none dominates.</li>
+            <li>A beat where the value you add is filtering, not synthesis.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <p class="fmt-name">Thematic clusters</p>
+      <p class="fmt-use">One beat covered deeply, patterns across items.</p>
+      <div class="skeleton">
+        <div class="brow w45 hs"><span class="bname">Title and period</span><span class="bbudget">1 line</span></div>
+        <div class="brow w85 hm"><span class="bname">Standfirst</span><span class="bbudget">1 to 2 sentences</span></div>
+        <div class="brow w70 hs"><span class="bname">Cluster heading</span><span class="bbudget">1 line <em>repeats</em></span></div>
+        <div class="brow key w85 hm"><span class="bname">Cluster intro</span><span class="bbudget">1 sentence, a claim <em>repeats</em></span></div>
+        <div class="brow w85 hl"><span class="bname">Cluster items</span><span class="bbudget">2 to 4, 40 to 60 words <em>repeats</em></span></div>
+        <div class="brow w70 hs"><span class="bname">Next cluster</span><span class="bbudget">2 to 4 clusters total</span></div>
+        <div class="brow opt w55 hs"><span class="bname">Watch list</span><span class="bbudget">2 to 3 bullets</span></div>
+      </div>
+      <div class="pcu">
+        <div class="pcu-row">
+          <p class="pcu-lab">Pros</p>
+          <ul class="pcu-list">
+            <li>Grouping surfaces a direction of travel that the same items scattered through a list would hide.</li>
+            <li>The cluster intro's claim turns a list into pattern recognition.</li>
+            <li>Cluster order carries meaning: lead with the theme the standfirst is about.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Cons</p>
+          <ul class="pcu-list">
+            <li>Cluster intros that only announce reduce the format to a list with headings, its commonest failure.</li>
+            <li>Fewer than about six items and it is two clusters of two, a list in disguise.</li>
+            <li>Items filed by keyword rather than meaning make a cluster that shows nothing in common.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Use cases</p>
+          <ul class="pcu-list">
+            <li>One beat covered deeply over a week or fortnight with enough volume to group.</li>
+            <li>A period where you want the reader to notice patterns rather than events.</li>
+            <li>A round-up where several items point the same way and the grouping is the insight.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <p class="fmt-name">Narrated digest</p>
+      <p class="fmt-use">Several stories and one argument tying them together.</p>
+      <div class="skeleton">
+        <div class="brow w70 hs"><span class="bname">Title</span><span class="bbudget">1 line, the argument</span></div>
+        <div class="brow key w85 hm"><span class="bname">Opening claim</span><span class="bbudget">1 paragraph</span></div>
+        <div class="brow w85 hl"><span class="bname">First story</span><span class="bbudget">2 to 3 paragraphs</span></div>
+        <div class="brow w35 hs"><span class="bname">Transition</span><span class="bbudget">1 sentence</span></div>
+        <div class="brow w85 hl"><span class="bname">Second story</span><span class="bbudget">2 to 3 paragraphs</span></div>
+        <div class="brow w35 hs"><span class="bname">Transition</span><span class="bbudget">1 sentence</span></div>
+        <div class="brow w85 hl"><span class="bname">Further stories</span><span class="bbudget">1 to 3, 2 paragraphs each</span></div>
+        <div class="brow w70 hm"><span class="bname">Counter-reading</span><span class="bbudget">1 paragraph</span></div>
+        <div class="brow key w85 hm"><span class="bname">Synthesis</span><span class="bbudget">1 to 2 paragraphs</span></div>
+        <div class="brow opt w45 hs"><span class="bname">Sources</span><span class="bbudget">list</span></div>
+      </div>
+      <div class="pcu">
+        <div class="pcu-row">
+          <p class="pcu-lab">Pros</p>
+          <ul class="pcu-list">
+            <li>The only newsletter shape that builds an argument across items instead of aggregating them.</li>
+            <li>Real transitions state a relationship, so each story reads as evidence.</li>
+            <li>Voice is the product; readers come for your reading of events rather than for coverage.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Cons</p>
+          <ul class="pcu-list">
+            <li>The hardest to fake honestly: force a thesis onto unrelated stories and it is the most annoying newsletter there is.</li>
+            <li>Fake transitions ('meanwhile', 'in other news') expose a list pretending to be an argument.</li>
+            <li>With no counter-reading it reads as a column, not analysis.</li>
+          </ul>
+        </div>
+        <div class="pcu-row">
+          <p class="pcu-lab">Use cases</p>
+          <ul class="pcu-list">
+            <li>A weekly where you have a thesis and the week's stories are the evidence for it.</li>
+            <li>A commentary newsletter whose readers want interpretation over coverage.</li>
+            <li>A round-up you could defend as an argument if a reader challenged it.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+  <footer class="pagefoot">Powered by AI Experimentation Lab &amp; MCC</footer>
+
+</main>
+</body>
+</html>

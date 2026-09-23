@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The fertiliser runs</title>
+<style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff; --fg: #16202c; --muted: #5b6675; --rule: #d7dee8;
+      --panel: #eef3fa; --accent: #0033a0; --link: #0033a0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--fg); margin: 0;
+      font: 17px/1.62 Georgia, "Iowan Old Style", "Times New Roman", serif;
+      padding: 3rem 1.25rem 5rem;
+    }
+    main { max-width: 40rem; margin: 0 auto; }
+    h1, h2, h3, .kicker, .label, .item-head, .readtime, .masthead, .pagefoot {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    h1 { font-size: 1.95rem; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 .6rem; }
+    h2 { font-size: 1.15rem; line-height: 1.3; margin: 2.2rem 0 .5rem; }
+    h3 { font-size: 1rem; margin: 1.6rem 0 .3rem; }
+    p { margin: 0 0 1.05rem; }
+    a { color: var(--link); }
+    .kicker, .masthead {
+      font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--accent); margin: 0 0 .7rem; font-weight: 600;
+    }
+    .dateline, .byline, .item-source, .readtime {
+      font-size: .85rem; color: var(--muted);
+    }
+    .byline { margin: 0 0 1.8rem; padding-bottom: 1.2rem; border-bottom: 1px solid var(--rule); }
+    .standfirst { font-size: 1.12rem; color: var(--fg); margin: 0 0 1.6rem; }
+    .label { font-weight: 700; }
+    .block { margin: 0 0 1.15rem; }
+    .bullets { margin: .2rem 0 1.15rem; padding-left: 1.15rem; }
+    .bullets li { margin: 0 0 .35rem; }
+    .nut-graf, .cluster-intro, .turn, .reveal {
+      border-left: 3px solid var(--accent); padding-left: 1rem;
+    }
+    .turn, .reveal { font-size: 1.1rem; margin: 2rem 0; }
+    .numbers { background: var(--panel); padding: .9rem 1.1rem; margin: 0 0 1.15rem; }
+    hr.rule { border: 0; border-top: 1px solid var(--rule); margin: 2.4rem 0; }
+    .item { margin: 0 0 1.5rem; }
+    .item-head { font-weight: 700; }
+    .cluster { margin: 0 0 2rem; }
+    .sources, .watchlist { font-size: .9rem; color: var(--muted); }
+    .qa { margin: 0 0 1.9rem; }
+    .cite { text-decoration: none; font-size: .84em; white-space: nowrap; }
+    .sourcelist {
+      margin-top: 2.8rem; padding-top: 1.1rem; border-top: 1px solid var(--rule);
+      font-size: .86rem; color: var(--muted);
+    }
+    .sourcelist h2 {
+      font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--accent); margin: 0 0 .8rem;
+    }
+    .sourcelist ol { padding-left: 1.5rem; margin: 0; }
+    .sourcelist li { margin: 0 0 .5rem; }
+    .pagefoot {
+      margin-top: 2.8rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+      font-size: .74rem; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted);
+    }
+</style>
+</head>
+<body>
+<!-- DELAYED REVEAL TEMPLATE. Establish credibility, stakes, the record and the provenance
+     BEFORE the finding. The reveal lands 30-45% in, stated flatly, no adjectives.
+     CITATIONS: the reveal carries the heaviest citation in the piece. The subject's prior
+     claim is cited to their own filing, never to someone's report of it. The PROVENANCE
+     paragraph stays in the body: it says how the documents were obtained and verified,
+     which no entry in a source list can convey. -->
+<main>
+
+  <p class="kicker">Investigation</p>
+  <h1>The fertiliser runs</h1>
+  <p class="byline">Limassol &middot; 9 April &middot; 14 min read</p>
+
+  <!-- ANCHORING LEDE: subject and setting. True, but not yet the finding. -->
+  <p>Baltic Meridian Shipping operates eleven vessels from a single floor of an office building near
+  the old port in Limassol <a class="cite" href="#s1">[1]</a>. Until 2022 it moved fertiliser, mostly
+  urea, mostly on annual contracts <a class="cite" href="#s2">[2]</a>, and almost nobody in the
+  industry had heard of it.</p>
+
+  <!-- STAKES: scale, money, public role. -->
+  <p>It now holds charter contracts the company values at EUR 210m a year
+  <a class="cite" href="#s2">[2]</a>. Three of its vessels call at EU ports monthly
+  <a class="cite" href="#s3">[3]</a>. Two European insurers carry its hull and machinery cover, and a
+  state-backed export credit agency has guaranteed one of its charters
+  <a class="cite" href="#s4">[4]</a>.</p>
+
+  <!-- THE RECORD: what is officially claimed, cited to the subject's OWN words or filings. -->
+  <p>In its 2024 filings and in a written statement to this publication in January, the company said it
+  had &ldquo;no counterparties in listed jurisdictions&rdquo; <a class="cite" href="#s2">[2]</a><a class="cite" href="#s5">[5]</a>.
+  It said every end user was screened against the consolidated list before a voyage was accepted, and
+  that it had &ldquo;declined business on this basis on multiple occasions&rdquo;
+  <a class="cite" href="#s5">[5]</a>.</p>
+
+  <p>Its compliance policy, filed with a Greek charterer in March 2023, commits the company to verifying
+  the discharge terminal, not merely the named consignee <a class="cite" href="#s6">[6]</a>.</p>
+
+  <!-- PROVENANCE: stays in the body. What the documents are, how obtained, how verified. -->
+  <p>Documents reviewed for this article comprise 2,300 pages of charter records, bunkering invoices
+  and discharge notes covering January 2022 to December 2024 <a class="cite" href="#s7">[7]</a>. They
+  were provided by a person with access to the company's operational systems, who is not being
+  identified. Each voyage in the records was checked against commercial port-call data
+  <a class="cite" href="#s3">[3]</a> and, for 34 of them, against two insurers' claims correspondence
+  <a class="cite" href="#s8">[8]</a>.</p>
+
+  <!-- THE REVEAL: flat, short, no adjectives and no adverbs. Heaviest citation in the piece. -->
+  <p class="reveal">The records show 41 voyages on which cargo declared as fertiliser was discharged at
+  a terminal operated by a sanctioned entity <a class="cite" href="#s7">[7]</a><a class="cite" href="#s9">[9]</a>.</p>
+
+  <!-- CORROBORATION: the second and third source that make it stand up. -->
+  <p>Port-call data independently places Baltic Meridian vessels alongside that terminal on 38 of the
+  41 dates <a class="cite" href="#s3">[3]</a>. On the remaining three the vessels are recorded at a
+  berth 900 metres away, operated by a subsidiary of the same entity
+  <a class="cite" href="#s3">[3]</a><a class="cite" href="#s9">[9]</a>.</p>
+
+  <p>Discharge notes for 22 of the voyages carry a terminal stamp that does not match the consignee
+  named on the corresponding charter <a class="cite" href="#s7">[7]</a>. A former operations employee,
+  who left the company in 2024, confirmed the stamp and said the mismatch was &ldquo;the normal way it
+  was done&rdquo; <a class="cite" href="#s10">[10]</a>.</p>
+
+  <p>Bunkering invoices place the vessels in the region for a further 14 days in aggregate beyond what
+  the filed voyage plans account for <a class="cite" href="#s7">[7]</a>.</p>
+
+  <!-- RESPONSE: at length, immediately after corroboration. Not buried at the bottom. -->
+  <p>Asked about the 41 voyages, Baltic Meridian said in a written response that it &ldquo;relies on
+  documentation provided by charterers&rdquo; and that any discrepancy in discharge records was
+  &ldquo;a matter for the terminal operator&rdquo; <a class="cite" href="#s11">[11]</a>. It did not
+  address the mismatch between the discharge stamps and the named consignees. A director declined to
+  answer specific questions on the record. The terminal operator did not respond to three requests for
+  comment.</p>
+
+  <!-- CONSEQUENCE: what follows, and who must now act. -->
+  <p>Both insurers said they were reviewing the cover <a class="cite" href="#s12">[12]</a>. Under the
+  January enforcement review, an insurer that continues cover after being put on notice may itself be
+  exposed <a class="cite" href="#s13">[13]</a>.</p>
+
+  <p>The export credit agency confirmed the guarantee is live and said it does not comment on
+  individual exposures <a class="cite" href="#s12">[12]</a>. Its governing regulation requires it to
+  suspend a guarantee where it has reasonable grounds to suspect a breach
+  <a class="cite" href="#s14">[14]</a>, a threshold it has never publicly defined.</p>
+
+  <section class="sourcelist">
+    <h2>Sources</h2>
+    <ol>
+      <li id="s1"><a href="#">Cyprus Registrar of Companies, filing history for Baltic Meridian Shipping Ltd,
+      retrieved 3 March 2025</a>.</li>
+      <li id="s2"><a href="#">Baltic Meridian Shipping Ltd, annual accounts and directors' report for 2024,
+      pages 4 and 11</a>.</li>
+      <li id="s3"><a href="#">Commercial AIS and port-call data, January 2022 to December 2024, queried
+      18 February 2025</a>.</li>
+      <li id="s4"><a href="#">Export credit agency, published guarantee register, entry 2024/117, retrieved
+      5 March 2025</a>.</li>
+      <li id="s5">Baltic Meridian Shipping Ltd, written statement to the author, 22 January 2025.</li>
+      <li id="s6">Baltic Meridian Shipping Ltd, counterparty compliance policy, filed with a Greek
+      charterer, March 2023, section 4.2.</li>
+      <li id="s7">Charter records, bunkering invoices and discharge notes, January 2022 to December 2024,
+      2,300 pages, provided by a source with access to the company's operational systems. Voyage-level
+      index held by the author.</li>
+      <li id="s8">Claims correspondence from two marine insurers covering 34 voyages, reviewed
+      by the author, February 2025.</li>
+      <li id="s9"><a href="#">EU consolidated list of persons and entities subject to restrictive measures,
+      entry for the terminal operator and its subsidiary, version of 1 March 2025</a>.</li>
+      <li id="s10">Interview with a former Baltic Meridian operations employee, 26 February 2025.
+      Name withheld; identity and employment dates verified by the author.</li>
+      <li id="s11">Baltic Meridian Shipping Ltd, written response to the author's questions,
+      2 April 2025.</li>
+      <li id="s12">Written statements from two marine insurers and the export credit agency,
+      3 to 7 April 2025.</li>
+      <li id="s13"><a href="#">European Commission, review of third-country circumvention of export controls,
+      January 2025, pages 44 to 46</a>.</li>
+      <li id="s14"><a href="#">Export credit agency, governing regulation, article 12(3)</a>.</li>
+    </ol>
+  </section>
+
+  <footer class="pagefoot">Powered by AI Experimentation Lab &amp; MCC</footer>
+
+</main>
+</body>
+</html>
