@@ -20,6 +20,7 @@ import {
   parseMemoryMb,
   parsePidsLimit,
   resolveProviderName,
+  syncSharedAgents,
   syncSkillSymlinks,
   toMountSpecs,
 } from './container-runner.js';
@@ -489,6 +490,94 @@ describe('syncSkillSymlinks', () => {
     expect(log.warn).toHaveBeenCalledWith(
       expect.stringContaining('Shared skill not symlinked'),
       expect.objectContaining({ skill: 'welcome' }),
+    );
+  });
+});
+
+describe('syncSharedAgents', () => {
+  // The real trunk roster. Derived from the directory, so a brief added under
+  // container/agents/ is picked up by this test with no list to maintain.
+  const sharedDir = path.join(process.cwd(), 'container', 'agents');
+
+  function tmpClaudeDir(): string {
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'ncl-agents-'));
+  }
+  function tmpSrcDir(): string {
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'ncl-agents-src-'));
+  }
+  function rosterOf(dir: string): string[] {
+    return fs
+      .readdirSync(dir)
+      .filter((n) => n.endsWith('.md') && n !== 'README.md')
+      .sort();
+  }
+
+  it('copies every trunk brief into .claude-shared/agents/, verbatim, and records the manifest', () => {
+    const dir = tmpClaudeDir();
+    syncSharedAgents(dir, sharedDir);
+
+    const agentsDir = path.join(dir, 'agents');
+    const roster = rosterOf(sharedDir);
+    expect(roster.length).toBeGreaterThan(0); // at least planner/refuter/verifier/editor
+    for (const name of roster) {
+      expect(fs.readFileSync(path.join(agentsDir, name), 'utf-8')).toBe(
+        fs.readFileSync(path.join(sharedDir, name), 'utf-8'),
+      );
+    }
+    const manifest = JSON.parse(fs.readFileSync(path.join(agentsDir, '.shared.json'), 'utf-8'));
+    expect(new Set(manifest)).toEqual(new Set(roster));
+  });
+
+  it('never plants the authoring README as a brief', () => {
+    const dir = tmpClaudeDir();
+    syncSharedAgents(dir, sharedDir);
+    expect(fs.existsSync(path.join(dir, 'agents', 'README.md'))).toBe(false);
+  });
+
+  it('prunes a brief that has left the shared source, tracked via the manifest', () => {
+    const src = tmpSrcDir();
+    fs.writeFileSync(path.join(src, 'planner.md'), 'planner');
+    fs.writeFileSync(path.join(src, 'gone.md'), 'gone');
+    const dir = tmpClaudeDir();
+    syncSharedAgents(dir, src);
+    expect(fs.existsSync(path.join(dir, 'agents', 'gone.md'))).toBe(true);
+
+    fs.rmSync(path.join(src, 'gone.md'));
+    syncSharedAgents(dir, src);
+    expect(fs.existsSync(path.join(dir, 'agents', 'gone.md'))).toBe(false);
+    expect(fs.existsSync(path.join(dir, 'agents', 'planner.md'))).toBe(true);
+  });
+
+  it("overwrites a shared brief on update but leaves a group's own brief alone", () => {
+    const src = tmpSrcDir();
+    fs.writeFileSync(path.join(src, 'planner.md'), 'v1');
+    const dir = tmpClaudeDir();
+    syncSharedAgents(dir, src);
+
+    // A brief the group authored itself, never in the shared source.
+    const ownBrief = path.join(dir, 'agents', 'mine.md');
+    fs.writeFileSync(ownBrief, 'group-owned');
+
+    fs.writeFileSync(path.join(src, 'planner.md'), 'v2'); // trunk update
+    syncSharedAgents(dir, src);
+
+    expect(fs.readFileSync(path.join(dir, 'agents', 'planner.md'), 'utf-8')).toBe('v2');
+    expect(fs.readFileSync(ownBrief, 'utf-8')).toBe('group-owned');
+  });
+
+  it('does not clobber a group-owned brief that collides with a shared name', () => {
+    const src = tmpSrcDir();
+    const dir = tmpClaudeDir();
+    fs.mkdirSync(path.join(dir, 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'agents', 'editor.md'), 'group-owned editor');
+
+    fs.writeFileSync(path.join(src, 'editor.md'), 'shared editor');
+    syncSharedAgents(dir, src);
+
+    expect(fs.readFileSync(path.join(dir, 'agents', 'editor.md'), 'utf-8')).toBe('group-owned editor');
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Shared agent brief not synced'),
+      expect.objectContaining({ brief: 'editor.md' }),
     );
   });
 });

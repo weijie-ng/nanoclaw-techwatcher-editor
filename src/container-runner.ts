@@ -850,6 +850,7 @@ export async function buildMounts(
     skillBackingPaths = providerSurfaces.skillBackingPaths;
   } else if (defaultSurfaces) {
     syncSkillSymlinks(claudeDir, containerConfig);
+    syncSharedAgents(claudeDir);
 
     // Compose CLAUDE.md fresh every spawn: every instruction source inlined
     // into one flat file. See `project-doc-compose.ts`.
@@ -1243,6 +1244,99 @@ function selectedSkillNames(containerConfig: import('./container-config.js').Con
         }
       })
     : [];
+}
+
+/**
+ * Copy the trunk-owned shared subagent briefs (`container/agents/*.md`, minus
+ * the authoring README) into a group's `.claude-shared/agents/`, which mounts at
+ * `~/.claude/agents/` so the Claude Agent SDK discovers them.
+ *
+ * Copies rather than symlinks (the skill path symlinks to `/app/skills`, but the
+ * agents source is not a container mount, and the SDK reads real files here). A
+ * group keeps its own briefs in the same directory, so the shared set is tracked
+ * in a `.shared.json` manifest: on re-sync a brief that left the source is
+ * removed, a brief still shared is overwritten (trunk owns it), and a file the
+ * group put there itself — never in the manifest — is left untouched, including
+ * when it collides with a shared name.
+ *
+ * Runs only on the default (Claude) surfaces path: these are SDK subagent
+ * definitions, and a brief's cross-provider `model:` pin still resolves through
+ * the same gateway the Claude SDK already calls.
+ */
+export function syncSharedAgents(
+  claudeDir: string,
+  sharedAgentsDir: string = path.join(process.cwd(), 'container', 'agents'),
+): void {
+  const agentsDir = path.join(claudeDir, 'agents');
+  fs.mkdirSync(agentsDir, { recursive: true });
+
+  const shared = sharedAgentBriefNames(sharedAgentsDir);
+  const manifestPath = path.join(agentsDir, '.shared.json');
+  const previous = readSharedAgentManifest(manifestPath);
+
+  // Drop briefs that used to be shared but no longer are. Only names we planted
+  // (recorded in the manifest) are eligible, so a group's own brief is never
+  // removed.
+  const sharedSet = new Set(shared);
+  for (const name of previous) {
+    if (!sharedSet.has(name)) {
+      try {
+        fs.rmSync(path.join(agentsDir, name), { force: true });
+      } catch {
+        /* already gone */
+      }
+    }
+  }
+
+  // Copy each current shared brief in. A real file the group owns (present but
+  // never planted by us) colliding with a shared name is left alone and
+  // surfaced, mirroring the shared-skill conflict warning.
+  const previousSet = new Set(previous);
+  const planted: string[] = [];
+  for (const name of shared) {
+    const dst = path.join(agentsDir, name);
+    if (fs.existsSync(dst) && !previousSet.has(name)) {
+      log.warn('Shared agent brief not synced: a group-owned brief occupies the path', {
+        brief: name,
+        path: dst,
+      });
+      continue;
+    }
+    fs.copyFileSync(path.join(sharedAgentsDir, name), dst);
+    planted.push(name);
+  }
+
+  fs.writeFileSync(manifestPath, JSON.stringify(planted));
+}
+
+/**
+ * The shared subagent roster, derived from the directory: every `*.md` that is
+ * an actual brief. The authoring `README.md` is not a brief, and the manifest
+ * (`.shared.json`) is not `*.md`, so neither is planted. Sorted for a
+ * deterministic manifest.
+ */
+function sharedAgentBriefNames(sharedAgentsDir: string): string[] {
+  if (!fs.existsSync(sharedAgentsDir)) return [];
+  return fs
+    .readdirSync(sharedAgentsDir)
+    .filter((name) => name.endsWith('.md') && name !== 'README.md')
+    .filter((name) => {
+      try {
+        return fs.statSync(path.join(sharedAgentsDir, name)).isFile();
+      } catch {
+        return false;
+      }
+    })
+    .sort();
+}
+
+function readSharedAgentManifest(manifestPath: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+    return Array.isArray(parsed) ? parsed.filter((n): n is string => typeof n === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 const execAsync = promisify(exec);
