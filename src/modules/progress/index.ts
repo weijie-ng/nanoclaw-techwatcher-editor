@@ -111,6 +111,12 @@ interface ProgressTarget {
   backoffUntil: number;
   /** An adapter call is in flight — ticks skip rather than pile up. */
   busy: boolean;
+  /**
+   * Re-armed after a mid-turn reply (resumeProgressAfterDelivery). Such an
+   * entry only re-posts while the container still holds a claimed inbound
+   * message, so the final reply of a turn never gets a fresh timer under it.
+   */
+  resumed: boolean;
 }
 
 const progressTargets = new Map<string, ProgressTarget>();
@@ -168,6 +174,33 @@ function readProgressState(agentGroupId: string, sessionId: string): ProgressSta
   } catch {
     // Missing table/columns on an older session DB — nothing to show.
     return EMPTY_STATE;
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Is a turn still open? The container marks each inbound message it claims
+ * `processing` in processing_ack and flips it to `completed` when the turn
+ * ends, so any `processing` row means the agent hasn't finished answering.
+ * Read-only, open-close, same discipline as readProgressState. Anything that
+ * stops the read (no DB, no table) answers "no" — the caller retires.
+ */
+function hasTurnInFlight(agentGroupId: string, sessionId: string): boolean {
+  let db: Database.Database;
+  try {
+    db = new Database(outboundDbPath(agentGroupId, sessionId), { readonly: true });
+    db.pragma('busy_timeout = 5000');
+    db.pragma('mmap_size = 0');
+    // eslint-disable-next-line no-catch-all/no-catch-all -- no session DB means no turn, which is exactly the retire signal
+  } catch {
+    return false;
+  }
+  try {
+    return db.prepare("SELECT 1 FROM processing_ack WHERE status = 'processing' LIMIT 1").get() !== undefined;
+    // eslint-disable-next-line no-catch-all/no-catch-all -- a missing table is "no turn in flight", not an error to surface
+  } catch {
+    return false;
   } finally {
     db.close();
   }
@@ -308,6 +341,12 @@ async function tick(sessionId: string): Promise<void> {
     await stopProgress(sessionId);
     return;
   }
+  if (entry.resumed && !entry.messageId && !hasTurnInFlight(entry.agentGroupId, sessionId)) {
+    // The reply that re-armed this entry was the turn's last word.
+    log.debug('Progress retiring — turn finished after its reply', { sessionId });
+    await stopProgress(sessionId);
+    return;
+  }
   if (entry.backoffUntil > Date.now()) return; // honoring a 429's retry_after
 
   const state = readProgressState(entry.agentGroupId, sessionId);
@@ -416,17 +455,6 @@ export function startProgress(
     void stopProgress(sessionId);
   }
 
-  const firstPost = setTimeout(() => {
-    const entry = progressTargets.get(sessionId);
-    if (!entry) return;
-    scheduleTick(sessionId);
-    const interval = setInterval(() => scheduleTick(sessionId), EDIT_INTERVAL_MS);
-    interval.unref();
-    entry.interval = interval;
-  }, FIRST_POST_DELAY_MS);
-  // unref so a leaked entry can't hold the event loop alive.
-  firstPost.unref();
-
   progressTargets.set(sessionId, {
     sessionId,
     agentGroupId,
@@ -434,12 +462,58 @@ export function startProgress(
     platformId,
     threadId,
     instance,
-    firstPost,
+    firstPost: scheduleFirstPost(sessionId),
     interval: null,
     startedAt: Date.now(),
     backoffUntil: 0,
     busy: false,
+    resumed: false,
   });
+}
+
+/** Wait out FIRST_POST_DELAY_MS, then tick now and every EDIT_INTERVAL_MS. */
+function scheduleFirstPost(sessionId: string): NodeJS.Timeout {
+  const firstPost = setTimeout(() => {
+    const entry = progressTargets.get(sessionId);
+    if (!entry || entry.firstPost !== firstPost) return;
+    scheduleTick(sessionId);
+    const interval = setInterval(() => scheduleTick(sessionId), EDIT_INTERVAL_MS);
+    interval.unref();
+    entry.interval = interval;
+  }, FIRST_POST_DELAY_MS);
+  // unref so a leaked entry can't hold the event loop alive.
+  firstPost.unref();
+  return firstPost;
+}
+
+/**
+ * A user-facing reply was just delivered. Take the progress message down —
+ * the reply is on screen — but keep tracking the turn: an interim reply
+ * ("on it", a status update) is not the end of the work, and without this
+ * the chat would sit silent for the rest of a long turn.
+ *
+ * After FIRST_POST_DELAY_MS a fresh message is posted below the reply, but
+ * only if the agent is still working (heartbeat) AND a turn is still open
+ * (processing_ack). The elapsed clock keeps counting from the first wake.
+ * A final reply therefore retires the entry silently on its first tick.
+ */
+export async function resumeProgressAfterDelivery(sessionId: string): Promise<void> {
+  const entry = progressTargets.get(sessionId);
+  if (!entry) return;
+  clearTimeout(entry.firstPost);
+  if (entry.interval) clearInterval(entry.interval);
+  // A fresh object, not a mutation: an in-flight tick holding the old entry
+  // sees the identity change after its await and deletes its own post.
+  progressTargets.set(sessionId, {
+    ...entry,
+    firstPost: scheduleFirstPost(sessionId),
+    interval: null,
+    messageId: undefined,
+    lastText: undefined,
+    busy: false,
+    resumed: true,
+  });
+  if (entry.messageId) await deleteMessage(entry, entry.messageId);
 }
 
 /**

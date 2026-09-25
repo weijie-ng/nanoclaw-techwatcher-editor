@@ -33,7 +33,7 @@ import { fanOutboundMessage } from './modules/cross-session-context/index.js';
 import { log } from './log.js';
 import { normalizeOptions } from './channels/ask-question.js';
 import { clearOutbox, readOutboxFiles, withExistingMailboxSession } from './session-manager.js';
-import { stopProgress } from './modules/progress/index.js';
+import { resumeProgressAfterDelivery } from './modules/progress/index.js';
 import { pauseTypingRefreshAfterDelivery, setTypingAdapter } from './modules/typing/index.js';
 import type { OutboundFile } from './channels/adapter.js';
 import type { PendingApproval, Session } from './types.js';
@@ -306,10 +306,12 @@ async function drainSession(session: Session): Promise<void> {
       await clearAttemptRow(msg.id);
       if (msg.kind !== 'system' && msg.channelType !== 'agent') {
         pauseTypingRefreshAfterDelivery(session.id);
-        // The answer is on screen — take the live progress message down.
-        // Awaited (one platform call, never throws) so the scratch message
-        // can't outlive the reply it was standing in for.
-        await stopProgress(session.id);
+        // The answer is on screen — take the live progress message down,
+        // and re-post it below the reply if the turn is still running (an
+        // interim reply is not the end of the work). Awaited (one platform
+        // call, never throws) so the scratch message can't outlive the reply
+        // it was standing in for.
+        await resumeProgressAfterDelivery(session.id);
         if (msg.kind !== 'task_log') {
           // Cross-session context: echo the delivered reply into the
           // conversation's recently active sibling sessions. Unawaited — the

@@ -28,7 +28,7 @@ vi.mock('../../config.js', async () => {
 import { setDeliveryAdapter } from '../../delivery.js';
 import { heartbeatPath } from '../../session-manager.js';
 import { startTypingRefresh, stopTypingRefresh } from '../typing/index.js';
-import { renderProgress, startProgress, stopProgress } from './index.js';
+import { renderProgress, resumeProgressAfterDelivery, startProgress, stopProgress } from './index.js';
 
 interface Sent {
   channelType: string;
@@ -79,6 +79,17 @@ function writeOutboundDb(
       state.current_tool ?? null,
     );
   }
+  db.close();
+}
+
+/** Stand in for the container's processing_ack: one claimed inbound message, or none. */
+function writeProcessingAck(status: 'processing' | 'completed'): void {
+  const dir = path.join(DATA_DIR, 'v2-sessions', 'ag-1', SESSION);
+  fs.mkdirSync(dir, { recursive: true });
+  const db = new Database(path.join(dir, 'outbound.db'));
+  db.pragma('journal_mode = DELETE');
+  db.exec('CREATE TABLE IF NOT EXISTS processing_ack (message_id TEXT PRIMARY KEY, status TEXT, status_changed TEXT)');
+  db.prepare('INSERT OR REPLACE INTO processing_ack VALUES (?, ?, ?)').run('in-1', status, new Date().toISOString());
   db.close();
 }
 
@@ -386,6 +397,54 @@ describe('stopProgress', () => {
       throw new Error('message to delete not found');
     };
     await expect(stopProgress(SESSION)).resolves.toBeUndefined();
+  });
+});
+
+describe('resumeProgressAfterDelivery', () => {
+  it('re-posts below an interim reply while the turn is still open, clock still counting', async () => {
+    writeProcessingAck('processing');
+    start();
+    await advanceAlive(7_050);
+    expect(sent).toHaveLength(1);
+
+    await resumeProgressAfterDelivery(SESSION);
+    expect(sent[1].payload).toEqual({ operation: 'delete', messageId: POSTED_ID });
+
+    await advanceAlive(6_000); // still inside the new silence window
+    expect(sent).toHaveLength(2);
+    await advanceAlive(1_100);
+    expect(sent).toHaveLength(3);
+    expect(sent[2].payload.operation).toBeUndefined(); // a fresh post, not an edit
+    expect(sent[2].payload.text).toBe('🔧 Working…\n⏱ 14s');
+
+    await advanceAlive(5_000);
+    expect(sent[3].payload).toMatchObject({ operation: 'edit', messageId: POSTED_ID });
+  });
+
+  it('retires silently after a final reply — no fresh timer under the answer', async () => {
+    writeProcessingAck('completed');
+    start();
+    await advanceAlive(7_050);
+    await resumeProgressAfterDelivery(SESSION);
+    expect(sent).toHaveLength(2); // post + delete
+
+    // Heartbeat still warm (end-of-turn events), but no turn is open.
+    await advanceAlive(10_000);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(sent).toHaveLength(2);
+  });
+
+  it('retires when the session DB has no processing_ack at all', async () => {
+    start();
+    await advanceAlive(7_050);
+    await resumeProgressAfterDelivery(SESSION);
+    await advanceAlive(10_000);
+    expect(sent).toHaveLength(2);
+  });
+
+  it('is a no-op for a session with no progress entry', async () => {
+    await expect(resumeProgressAfterDelivery('sess-never-started')).resolves.toBeUndefined();
+    expect(sent).toHaveLength(0);
   });
 });
 
